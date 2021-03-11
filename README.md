@@ -6,7 +6,7 @@ Population genomics project for three serovars of *Salmonella enterica* Lineage 
 
 To use publicly available genomics dataset to achieve the following goals:
 
-* Use a hierarchical-based population structure analysis to mapping pangenomes for loci discovery and trait prediction
+* Use of a hierarchical-based population structure analysis to mapping pangenomes for loci discovery and trait prediction
 * Identification of novel hidden variants or potential ecotypes within each population of serovar
 
 ### Methods

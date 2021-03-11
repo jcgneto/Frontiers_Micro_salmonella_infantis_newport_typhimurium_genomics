@@ -31,3 +31,9 @@ There are two major implications or actionable knowlede that can be learned from
 
 1. Trait discovery may result in finding specific ways of mitigate pathogens across the food chain. 
 2. Identification of previously unknown sub-population or variants can inform Public Health agencies for enhance epidemiological surveillance. 
+
+### Journal
+
+Data belong to our paper published here:
+
+* Collection on Using Genomics to Inform Food Safety Inspection Systems in Frontiers in Sustainable Food Systems - section Agro-Food Safety.

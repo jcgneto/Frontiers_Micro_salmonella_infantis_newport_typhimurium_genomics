@@ -34,6 +34,4 @@ There are two major implications or actionable knowlede that can be learned from
 
 ### Journal
 
-Data belong to our paper published here:
-
-* Collection on Using Genomics to Inform Food Safety Inspection Systems in Frontiers in Sustainable Food Systems - section Agro-Food Safety.
+Collection on Using Genomics to Inform Food Safety Inspection Systems in Frontiers in Sustainable Food Systems - section Agro-Food Safety.

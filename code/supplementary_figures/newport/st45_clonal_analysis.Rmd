@@ -1,0 +1,400 @@
+---
+title: "ST45 clonal analysis"
+author: "Joao Carlos Gomes-Neto"
+date: "3/5/2021"
+output: html_document
+---
+
+Load packages
+
+```{r, include = FALSE}
+# Load packages
+
+library(tidyverse)
+library(skimr)
+library(RColorBrewer)
+library(gridExtra)
+library(lattice)
+library(ggpubr)
+library(vegan)
+library(reshape2)
+library(ggrepel)
+library(ggnewscale)
+library(forcats)
+library(naniar)
+library(data.table)
+library(rARPACK)
+library(logisticPCA)
+library(cluster)
+library(factoextra)
+library(NbClust)
+library(plotly)
+```
+
+Simpson's index
+
+```{r, include = FALSE}
+# BAPS1 
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:7] <- c("id", "BAPS1", "BAPS2", "BAPS3", "BAPS4", "BAPS5", "BAPS6") 
+
+d1 <- baps
+
+d1 <- d1 %>% mutate(BAPS1 = as.factor(BAPS1))
+d1 <- d1 %>% mutate(BAPS2 = as.factor(BAPS2))
+d1 <- d1 %>% mutate(BAPS3 = as.factor(BAPS3))
+d1 <- d1 %>% mutate(BAPS4 = as.factor(BAPS4))
+d1 <- d1 %>% mutate(BAPS5 = as.factor(BAPS5))
+d1 <- d1 %>% mutate(BAPS6 = as.factor(BAPS6))
+########################################################################
+# ST
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+# st
+
+s1$st <- ifelse(s1$ST == 45, "ST45", 
+                ifelse(s1$ST == 5, "ST5", 
+                       ifelse(s1$ST == 118, "ST118", "Other STs")))
+
+d2 <- s1
+
+d2 <- d2 %>% select(-ST)
+#########################################################################
+# SISTR
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/sistr_output.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") 
+
+
+d3 <- sis1
+
+# merge datasets
+
+d4 <- left_join(d2, d3, on = "id")
+d5 <- left_join(d4, d1, on = "id")
+
+# drop NA
+
+d6 <- d5 %>% drop_na()
+
+# cgMLST diversity 
+
+cgmlst_div <- d6 %>%
+              drop_na(cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(st, cgmlst_ST) %>%
+              group_by(st, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(st) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("st"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "cgMLST")
+
+#####################################
+
+# Baps based diversity 
+
+# Baps1
+baps1 <- d6 %>%
+              select(st, BAPS1) %>%
+              drop_na(st, BAPS1) %>%
+              group_by(st, BAPS1) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(st) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("st"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS1")
+
+# Baps2
+baps2 <- d6 %>%
+              select(st, BAPS2) %>%
+              drop_na(st, BAPS2) %>%
+              group_by(st, BAPS2) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(st) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("st"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS2")
+
+
+# Baps3
+baps3 <- d6 %>%
+              select(st, BAPS3) %>%
+              drop_na(st, BAPS3) %>%
+              group_by(st, BAPS3) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(st) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("st"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS3")
+
+
+# Baps4
+baps4 <- d6 %>%
+              select(st, BAPS4) %>%
+              drop_na(st, BAPS4) %>%
+              group_by(st, BAPS4) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(st) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("st"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS4")
+
+# Baps5
+baps5 <- d6 %>%
+              select(st, BAPS5) %>%
+              drop_na(st, BAPS5) %>%
+              group_by(st, BAPS5) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(st) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("st"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS5")
+
+# Baps6
+baps6 <- d6 %>%
+              select(st, BAPS6) %>%
+              drop_na(st, BAPS6) %>%
+              group_by(st, BAPS6) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(st) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("st"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS6")
+
+# Concatenate all datasets
+
+d11 <- rbind(cgmlst_div, baps1, baps2, baps3, baps4, baps5, baps6)
+d11$strat <- factor(d11$strat, levels=c("cgMLST", "BAPS1", "BAPS2", "BAPS3",
+                                              "BAPS4", "BAPS5", "BAPS6"))
+d11$st <- factor(d11$st, levels=c("ST5", "ST45", "ST118", "Other STs"))
+
+# Plot Simpson's diversity analysis
+
+fig7e <- ggplot(d11, aes(x = strat, y = value, group = st, fill = st)) + ylim(0,1.06)+
+  theme_bw() + 
+  xlab("") +
+  ylab("Index value") +
+  theme(axis.text.y = element_text(size = 45)) +
+  theme(axis.title.y = element_text(size = 50, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 45)) +
+  theme(axis.title.x = element_text(size = 26, face = "bold")) +
+  theme(strip.text.x = element_text(size = 36))+
+  theme(legend.title=element_text(size=35, face = "bold"))+
+  theme(legend.text=element_text(size=30)) +
+   geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(name = "ST", values=c("orange", "darkblue", "purple", "darkgreen")) 
+fig7e
+```
+
+haplotype analysis BAPS2-6
+
+```{r, include = FALSE}
+
+# BAPS1 
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:7] <- c("id", "BAPS1", "BAPS2", "BAPS3", "BAPS4", "BAPS5", "BAPS6") 
+
+d1 <- baps
+
+d1 <- d1 %>% mutate(BAPS1 = as.factor(BAPS1))
+d1 <- d1 %>% mutate(BAPS2 = as.factor(BAPS2))
+d1 <- d1 %>% mutate(BAPS3 = as.factor(BAPS3))
+d1 <- d1 %>% mutate(BAPS4 = as.factor(BAPS4))
+d1 <- d1 %>% mutate(BAPS5 = as.factor(BAPS5))
+d1 <- d1 %>% mutate(BAPS6 = as.factor(BAPS6))
+########################################################################
+# ST
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+# st
+
+s1$st <- ifelse(s1$ST == 45, "ST45", 
+                ifelse(s1$ST == 5, "ST5", 
+                       ifelse(s1$ST == 118, "ST118", "Other STs")))
+
+d2 <- s1
+
+d2 <- d2 %>% select(-ST)
+#########################################################################
+
+# merge datasets
+
+d3 <- left_join(d2, d1, on = "id")
+
+# drop NA
+
+d4 <- d3 %>% drop_na()
+
+# plot data
+
+# Baps based diversity 
+
+# Baps1
+baps1 <- d4 %>%
+              select(st, BAPS1) %>%
+              drop_na(st, BAPS1) %>%
+              group_by(st, BAPS1) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) %>%
+              mutate(group = "BAPS1") %>%
+              rename(baps = BAPS1)
+
+# Baps2
+baps2 <- d4 %>%
+              select(st, BAPS2) %>%
+              drop_na(st, BAPS2) %>%
+              group_by(st, BAPS2) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) %>%
+              mutate(group = "BAPS2") %>%
+              rename(baps = BAPS2)
+
+# Baps3
+baps3 <- d4 %>%
+              select(st, BAPS3) %>%
+              drop_na(st, BAPS3) %>%
+              group_by(st, BAPS3) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) %>%
+              mutate(group = "BAPS3") %>%
+              rename(baps = BAPS3)
+
+
+# Baps4
+baps4 <- d4 %>%
+              select(st, BAPS4) %>%
+              drop_na(st, BAPS4) %>%
+              group_by(st, BAPS4) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) %>%
+              mutate(group = "BAPS4") %>%
+              rename(baps = BAPS4)
+
+# Baps5
+baps5 <- d4 %>%
+              select(st, BAPS5) %>%
+              drop_na(st, BAPS5) %>%
+              group_by(st, BAPS5) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) %>%
+              mutate(group = "BAPS5") %>%
+              rename(baps = BAPS5)
+
+              # Baps6
+baps6 <- d4 %>%
+              select(st, BAPS6) %>%
+              drop_na(st, BAPS6) %>%
+              group_by(st, BAPS6) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) %>%
+              mutate(group = "BAPS6") %>%
+              rename(baps = BAPS6)
+
+# Concatenate all datasets
+
+d5 <- rbind(baps1, baps2, baps3, baps4, baps5, baps6)
+d5$group <- factor(d5$group, levels=c("BAPS1", "BAPS2", "BAPS3",
+                                              "BAPS4", "BAPS5", "BAPS6"))
+
+# plot data
+d5 <- d5 %>% mutate(baps = as.numeric(baps))
+d5$st <- factor(d5$st, levels=c("ST5", "ST45", "ST118", "Other STs"))
+
+plot1 <- ggplot(d5, aes(x = baps, y = prop, fill = st)) + ylim(0, 100) +
+  theme_bw() +
+  geom_col(position = "dodge")+
+  xlab("BAPS sub-groups (haplotypes)") +
+  ylab("Proportion") +
+    theme(axis.text.x = element_text(angle = 0, size = 25)) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 25)) +
+  theme(legend.title=element_text(size=35, face = "bold"))+
+  theme(legend.text=element_text(size=25)) +
+  scale_fill_manual(name = "ST", values=c("orange", "darkblue", "purple", "darkgreen")) +
+  theme(strip.text.x = element_text(size = 35)) +
+  facet_wrap(~group, ncol = 2) 
+plot1
+
+```

@@ -1,0 +1,36 @@
+---
+title: "SM phylogenies group2-20 Typhimurium"
+author: "Joao Carlos Gomes-Neto"
+date: "3/4/2021"
+output: html_document
+---
+
+Loading the necessary packages 
+```{r, include = FALSE}
+# Load packages
+
+library(tidyverse)
+library(skimr)
+library(RColorBrewer)
+library(gridExtra)
+library(lattice)
+library(ggpubr)
+library(vegan)
+library(reshape2)
+library(ggrepel)
+library(ggnewscale)
+library(forcats)
+library(naniar)
+library(Rtsne)
+
+# Install ggtree 
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+  # install.packages("BiocManager")
+#BiocManager::install(version = "3.11")
+
+#BiocManager::install("ggtree")
+
+# Load ggtree
+
+library(ggtree)
+```

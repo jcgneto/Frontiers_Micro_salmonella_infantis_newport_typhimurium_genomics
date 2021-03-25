@@ -1,0 +1,1575 @@
+---
+title: "logistic_pca_group2_20_typhimurium"
+author: "Joao Carlos Gomes-Neto"
+date: "1/12/2021"
+output: html_document
+---
+Load packages
+
+```{r, include = FALSE}
+# Load packages
+
+library(tidyverse)
+library(skimr)
+library(RColorBrewer)
+library(gridExtra)
+library(lattice)
+library(ggpubr)
+library(vegan)
+library(reshape2)
+library(ggrepel)
+library(ggnewscale)
+library(forcats)
+library(naniar)
+library(data.table)
+library(rARPACK)
+library(logisticPCA)
+library(cluster)
+library(factoextra)
+library(NbClust)
+library(plotly)
+```
+
+group 2
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_2/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+first 
+last
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_1089:group_8027)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_2 <- d10
+
+# export training data
+write.csv(training_data_group_2, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_2/pca_group_2/training_data_group_2.csv")
+```
+
+group 3
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_3/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_11:group_7406)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_3 <- d10
+
+# export training data 
+write.csv(training_data_group_3, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_3/pca_group_3/training_data_group_3.csv")
+```
+
+group 4
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_4/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_229:group_2942)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_4 <- d10
+
+# export training data 
+write.csv(training_data_group_4, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_4/pca_group_4/training_data_group_4.csv")
+```
+
+group 5
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_5/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, rtcB_2:group_7139)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_5 <- d10
+
+# export training data 
+write.csv(training_data_group_5, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_5/pca_group_5/training_data_group_5.csv")
+```
+
+group 6
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_6/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_1835:group_4690)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_6 <- d10
+
+# export training data 
+write.csv(training_data_group_6, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_6/pca_group_6/training_data_group_6.csv")
+```
+
+group 7
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_7/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_1240:group_7949)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_7 <- d10
+
+# export training data 
+write.csv(training_data_group_7, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_7/pca_group_7/training_data_group_7.csv")
+```
+
+group 8
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_8/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_1568:group_4767)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_8 <- d10
+
+# export training data 
+write.csv(training_data_group_8, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_8/pca_group_8/training_data_group_8.csv")
+```
+
+group 9
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_9/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, asr:group_948)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_9 <- d10
+
+# export training data 
+write.csv(training_data_group_9, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_9/pca_group_9/training_data_group_9.csv")
+```
+
+group 10
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_10/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_213:group_514)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_10 <- d10
+
+# export training data 
+write.csv(training_data_group_10, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_10/pca_group_10/training_data_group_10.csv")
+```
+
+group 11
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_11/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_1358:group_8397)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_11 <- d10
+
+# export training data 
+write.csv(training_data_group_11, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_11/pca_group_11/training_data_group_11.csv")
+```
+
+group 12
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_12/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_2651:ant1_2)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_12 <- d10
+
+# export training data 
+write.csv(training_data_group_12, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_12/pca_group_12/training_data_group_12.csv")
+```
+
+group 13
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_13/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, srlE_2:group_468)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_13 <- d10
+
+# export training data 
+write.csv(training_data_group_13, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_13/pca_group_13/training_data_group_13.csv")
+```
+
+group 14
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_14/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_1232:sopE)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_14 <- d10
+
+# export training data 
+write.csv(training_data_group_14, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_14/pca_group_14/training_data_group_14.csv")
+```
+
+group 15
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_15/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_533:group_9880)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_15 <- d10
+
+# export training data 
+write.csv(training_data_group_15, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_15/pca_group_15/training_data_group_15.csv")
+```
+
+group 16
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_16/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_1839:group_8656)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_16 <- d10
+
+# export training data 
+write.csv(training_data_group_16, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_16/pca_group_16/training_data_group_16.csv")
+```
+
+group 17
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_17/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_229:group_2853)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_17 <- d10
+
+# export training data 
+write.csv(training_data_group_17, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_17/pca_group_17/training_data_group_17.csv")
+```
+
+group 18
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_18/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_100:group_8055)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_18 <- d10
+
+# export training data 
+write.csv(training_data_group_18, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_18/pca_group_18/training_data_group_18.csv")
+```
+
+group 19
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_19/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_193:group_62)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_19 <- d10
+
+# export training data 
+write.csv(training_data_group_19, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_19/pca_group_19/training_data_group_19.csv")
+```
+
+group 20
+
+```{r, include = FALSE}
+# Now calculate the cluster membership using shell genes (>= 15% and <= 95% prevalence)
+
+# Add accessory genome
+
+d1 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_20/input_data/gene_presence_absence.Rtab')
+
+# set Genes as rownames
+
+d1 <- column_to_rownames(d1, var = "Gene") 
+
+d1$Gene <- NULL
+
+# Transpose it
+
+d2 <- transpose(d1)
+
+# Add column and rownames
+
+rownames(d2) <- colnames(d1)
+colnames(d2) <- rownames(d1)
+
+# Sum up each row
+
+d3 <- d2 %>%
+  colSums()
+
+d3b <- as.data.frame(d3)
+d3b <- rownames_to_column(d3b, "genes")
+
+# Find genes that are not core (99% or more of genomes)
+
+d4 <- d3b %>% 
+      mutate(prop = (d3/dim(d2)[1])*100) %>%
+      filter(prop >= 15 & prop < 95)
+
+list_of_genes <- d4$genes
+
+# get the accessory table
+
+d5 <- d2 %>%
+      select(list_of_genes)
+
+# Reset id to colnames
+
+d6 <- d5
+d6 <- rownames_to_column(d6, "id")
+
+# creating a data frame of colnames to extract first and last
+
+coln <- data.frame(colnames(d6))
+coln <- rename(coln, id = colnames.d6.)
+first <- coln[2, ]
+last <- tail(coln, n = 1)
+############################################################
+# filter out genes with counts higher than 1
+
+d7 <- gather(d6, genes, count, group_6910:group_1343)
+d8 <- d7 %>% filter(count <= 1)
+
+# spread the data
+
+d9 <- spread(d8, key = genes, value = count)
+
+# switch id column to index
+
+d10 <- column_to_rownames(d9, var = "id") 
+
+######################################################################
+# generate the training datasets 
+
+# Training data
+
+training_data_group_20 <- d10
+
+# export training data 
+write.csv(training_data_group_20, "~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_20/pca_group_20/training_data_group_20.csv")
+```

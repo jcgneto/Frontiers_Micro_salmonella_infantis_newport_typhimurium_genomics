@@ -11,27 +11,28 @@ Heuristic mining of publicly available genomics dataset to achieve the following
 
 ### Methods
 
-The computational platform ProkEvo was used for processing of paired-end Illumina raw sequences to generate the following outputs: 
+The computational platform ProkEvo (https://github.com/npavlovikj/ProkEvo) was used for processing of paired-end Illumina raw sequences to generate the following outputs: 
 core-genome alignment, BAPS, MLST, SISTR, AMR mapping, plasmid identification, and pangenome annotation. 
-FasTree was used to construct core-genome phylogenies. 
+FasTree was used to construct core-genome phylogenies (http://www.microbesonline.org/fasttree/). 
 AKronyMer was used to construct a pairwise distance matrix between bacterial genomes using the core-genome information as input. More information about Akronymer 
 can be found here (https://github.com/knights-lab/aKronyMer). 
-Parameters set in ProkEvo are provided here ( ).
-All data mining and statiscal modeling were done using custom R and python scripts. 
+Parameters set in ProkEvo are provided here (https://github.com/npavlovikj/ProkEvo).
+All data mining and statiscal modeling were done using custom R and python scripts. Those scripts are provided in the code folder present in this repository.
 
 ### Results 
 
 Here are two major findings of this work:
 
-1. The combination of a hierarchical-based population structure annd pangenome-enrichment analysis allows for identification of unique loci preferentially found on specific ST clonal complex within a serovar. Phenotypic predictions can then be made and validated with laboratorial testing. 
-2. Mining of the entire pangenome allows for identification of specific hidden sub-populations or variants that would not have been possible with BAPS, ST, or cgMLST based classifications produced with SISTR. 
+1. The combination of a hierarchical-based population structure annd pangenome-enrichment analysis (PANGEA) allows for identification of unique loci preferentially found on specific ST clonal complex within a serovar. Phenotypic predictions can then be made and validated with laboratorial testing. This approach shows how to go form large-scale computational analysis to trait selection and validation for specific populations. 
+
+2. Mining of whole-genomes for identification of specific cryptic ecotypes, or unidentified variants, that would not have been possible with the sole use of BAPS, ST, or cgMLST based classifications. 
 
 ### Implications 
 
 There are two major implications or actionable knowledge that can be learned from this work:
 
 1. Trait discovery may result in finding specific ways of mitigate pathogens across the food chain. 
-2. Identification of previously unknown sub-population or variants can inform Public Health agencies for enhance epidemiological surveillance. 
+2. Identification of previously cryptic variants can inform Public Health agencies for enhance epidemiological surveillance. 
 
 ### Journal
 

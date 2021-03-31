@@ -4,18 +4,19 @@ Population genomics project for three serovars of *Salmonella enterica* Lineage 
 
 ## Goal
 
-To use publicly available genomics dataset to achieve the following goals:
+Heuristic mining of publicly available genomics dataset to achieve the following goals:
 
-* Use of a hierarchical-based population structure analysis to mapping pangenomes for loci discovery and trait prediction
+* Using hierarchical-based population structure analysis to mapping pangenomes for loci discovery and trait prediction
 * Identification of novel hidden variants or potential ecotypes within each population of serovar
 
 ### Methods
 
-ProkEvo was used for processing of paired-end Illumina raw sequences to generate the following outputs: core-genome alignment, BAPS, MLST, 
-SISTR, AMR mapping, plasmid identification, and pangenome annotation. 
+The computational platform ProkEvo was used for processing of paired-end Illumina raw sequences to generate the following outputs: 
+core-genome alignment, BAPS, MLST, SISTR, AMR mapping, plasmid identification, and pangenome annotation. 
 FasTree was used to construct core-genome phylogenies. 
 AKronyMer was used to construct a pairwise distance matrix between bacterial genomes using the core-genome information as input. More information about Akronymer 
-can be found here (https://github.com/knights-lab/aKronyMer).
+can be found here (https://github.com/knights-lab/aKronyMer). 
+Parameters set in ProkEvo are provided here ( ).
 All data mining and statiscal modeling were done using custom R and python scripts. 
 
 ### Results 

@@ -227,7 +227,7 @@ snpinf <- ggplot(data2, aes(x = dist)) +
   theme(axis.title.y = element_text(size = 45, face = "bold")) +
   theme(axis.title.x = element_text(size = 45, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 40)) +
-  ggtitle("B.") +
+  ggtitle("C.") +
   theme(plot.title = element_text(size = 50, face = "bold")) + 
   annotate(geom = "text", label = "Mean = 723", x = 5e+04, y = 6e+06, 
                                   color = "black", size = 18) +
@@ -368,7 +368,7 @@ sero_plot <- ggplot(serovar_data, aes(x = prop_serovar, y = serovar, fill = sero
   theme(axis.title.x = element_text(size = 30, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 26)) +
   scale_fill_manual(values=c("darkblue", "gray")) +
-   ggtitle("C. Serovar") +
+   ggtitle("K. Serovar") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   geom_col() +
   annotate(geom = "text", label = "n = 1,686 genomes", x = 50, y = 2, 
@@ -399,7 +399,7 @@ st_plot <- ggplot(st_data, aes(x = st, y = prop_st, fill = st)) + ylim(0, 105) +
   theme(axis.title.x = element_text(size = 35, face = "bold")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 30)) +
   scale_fill_manual(values=c("red", "beige")) +
-  ggtitle("E. ST") +
+  ggtitle("M. ST") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   theme(strip.text.x = element_text(size = 20)) +
   geom_col() 
@@ -430,7 +430,7 @@ cgmlst_plot <- ggplot(cgmlst_data, aes(x = reorder(cgmlst_ST, -prop_cgmlst), y =
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 25)) +
   scale_fill_manual(values=c("red", "beige", "aliceblue", "darkgreen", "black", "brown", "orange", "gray")) +
   labs(fill="cgMLST clones") + 
-  ggtitle("F. cgMLST") +
+  ggtitle("N. cgMLST") +
   theme(plot.title = element_text(size = 40, face = "bold")) + 
   geom_col() +
   annotate(geom = "text", label = "> 2%", x = 3, y = 90, 
@@ -460,7 +460,7 @@ baps_plot <- ggplot(baps_data, aes(x = baps_1, y = prop, fill = baps_1)) + ylim(
   theme(axis.title.x = element_text(size = 35, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, size = 30)) +
   scale_fill_manual(name = "Serovar", values=c("darkgreen", "brown")) +
-  ggtitle("D. BAPS level 1") +
+  ggtitle("L. BAPS level 1") +
   theme(plot.title = element_text(size = 40, face = "bold")) + 
   theme(strip.text.x = element_text(size = 20)) +
   geom_col() 
@@ -688,7 +688,7 @@ fig4f <- ggplot(data6, aes(x = strat, y = value)) + ylim(0,1.05)+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 45)) +
   theme(axis.title.x = element_text(size = 26, face = "bold")) +
   theme(strip.text.x = element_text(size = 36))+
-  ggtitle("G. Simpson's D index of diversity") +
+  ggtitle("O. Simpson's D index of diversity") +
   theme(plot.title = element_text(size = 50, face = "bold")) + 
   theme(legend.text=element_text(size=20)) +
   geom_bar(stat = "identity", fill="darkblue") 
@@ -892,7 +892,7 @@ snpnew <- ggplot(data2, aes(x = dist)) +
   theme(axis.title.y = element_text(size = 45, face = "bold")) +
   theme(axis.title.x = element_text(size = 45, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 40)) +
-  ggtitle("I.") +
+  ggtitle("B.") +
   theme(plot.title = element_text(size = 50, face = "bold")) + 
   annotate(geom = "text", label = "Mean = 14,164", x = 7e+04, y = 6e+06, 
                                   color = "black", size = 18) +
@@ -1028,7 +1028,7 @@ sero_plot <- ggplot(serovar_data, aes(x = prop_serovar, y = serovar, fill = sero
   theme(axis.title.x = element_text(size = 30, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 26)) +
   scale_fill_manual(values=c("gray", "darkblue")) +
-   ggtitle("J. Serovar") +
+   ggtitle("F. Serovar") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   geom_col() +
   annotate(geom = "text", label = "n = 2,365 genomes", x = 60, y = 2, 
@@ -1059,7 +1059,7 @@ st_plot <- ggplot(st_data, aes(x = st, y = prop_st, fill = st)) + ylim(0, 105) +
   theme(axis.title.x = element_text(size = 30, face = "bold")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 28)) +
   scale_fill_manual(values=c("purple", "darkblue", "black", "darkgreen")) +
-  ggtitle("L. ST") +
+  ggtitle("H. ST") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   theme(strip.text.x = element_text(size = 20)) +
   geom_col() 
@@ -1091,7 +1091,7 @@ cgmlst_plot <- ggplot(cgmlst_data, aes(x = reorder(cgmlst_ST, -prop_cgmlst), y =
   scale_fill_manual(values=c("black", "darkblue", "red", "darkgreen",
                           "orange", "brown")) +
   labs(fill="cgMLST clones") + 
-  ggtitle("M. cgMLST") +
+  ggtitle("I. cgMLST") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   geom_col() +
   annotate(geom = "text", label = "> 2%", x = 3, y = 90, 
@@ -1123,7 +1123,7 @@ baps_plot <- ggplot(baps_data, aes(x = baps_1, y = prop, fill = baps_1)) + ylim(
   theme(legend.title=element_text(size=30, face = "bold"))+
   theme(legend.text=element_text(size=24)) +
   scale_fill_manual(name = "Serovar", values=c("orange", "cornflowerblue", "red", "darkcyan", "darkseagreen3")) +
-  ggtitle("K. BAPS level 1") +
+  ggtitle("G. BAPS level 1") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   theme(strip.text.x = element_text(size = 20)) +
   geom_col() 
@@ -1352,7 +1352,7 @@ fig3f <- ggplot(data6, aes(x = strat, y = value)) + ylim(0,1.05)+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 45)) +
   theme(axis.title.x = element_text(size = 26, face = "bold")) +
   theme(strip.text.x = element_text(size = 36))+
-  ggtitle("N. Simpson's D index of diversity") +
+  ggtitle("J. Simpson's D index of diversity") +
   theme(plot.title = element_text(size = 50, face = "bold")) + 
   theme(legend.text=element_text(size=20)) +
   geom_bar(stat = "identity", fill="darkblue") 
@@ -1592,7 +1592,7 @@ snptyphi <- ggplot(data22, aes(x = dist)) +
   theme(axis.title.y = element_text(size = 45, face = "bold")) +
   theme(axis.title.x = element_text(size = 45, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 40)) +
-  ggtitle("I.") +
+  ggtitle("A.") +
   theme(plot.title = element_text(size = 50, face = "bold")) + 
   annotate(geom = "text", label = "Mean = 1,474", x = 50000, y = 2e+07, 
                                   color = "black", size = 18) +
@@ -1939,7 +1939,7 @@ theme(axis.text.y = element_text(size = 35)) +
   theme(axis.title.x = element_text(size = 30, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 26)) +
   scale_fill_manual(values=c("gray", "darkblue", "lightblue")) +
-  ggtitle("Q. Serovar") +
+  ggtitle("A. Serovar") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
    #ggtitle(expression(bold(paste("B. ", bolditalic(S),". Typhimurium", " - Serovar")))) +
   #ggtitle(label = "B.",
@@ -1982,7 +1982,7 @@ theme(axis.text.y = element_text(size = 22)) +
   theme(legend.title=element_text(size=30, face = "bold"))+
   theme(legend.text=element_text(size=24)) +
   scale_fill_manual(values=c("darkgreen", "darkblue", "gray", "red", "black")) +
-  ggtitle("S. ST") +
+  ggtitle("C. ST") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   theme(strip.text.x = element_text(size = 20)) +
   geom_boxplot() +
@@ -2020,7 +2020,7 @@ theme(axis.text.y = element_text(size = 22)) +
   #scale_fill_gradient2(name = "cgmlst_ST", 
                         #low = "blue", high = "red") +
   labs(fill="cgMLST clones") + 
-  ggtitle("T. cgMLST") +
+  ggtitle("D. cgMLST") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   geom_boxplot(position = position_dodge(0.9)) +
   annotate(geom = "text", label = "> 2%", x = 3, y = 75, 
@@ -2051,7 +2051,7 @@ theme(axis.text.y = element_text(size = 30)) +
   theme(axis.title.x = element_text(size = 35, face = "bold")) +
   theme(axis.text.x = element_text(angle = 0, size = 28)) +
   scale_fill_manual(name = "Serovar", values=c("gray", "darkblue")) +
-  ggtitle("R. BAPS level 1") +
+  ggtitle("B. BAPS level 1") +
   theme(plot.title = element_text(size = 30, face = "bold")) + 
   theme(strip.text.x = element_text(size = 20)) +
   theme(legend.title=element_text(size=30, face = "bold")) +
@@ -2250,7 +2250,7 @@ fig2f <- ggplot(data24, aes(x = strat, y = value, fill = serovar)) + ylim(0,1.05
   theme(axis.title.x = element_text(size = 26, face = "bold")) +
   theme(strip.text.x = element_text(size = 36))+
   scale_fill_manual(values=c("gray", "darkblue")) + 
-  ggtitle("U. Simpson's D index of diversity") +
+  ggtitle("E. Simpson's D index of diversity") +
   theme(plot.title = element_text(size = 50, face = "bold")) + 
     theme(legend.title=element_text(size=40, face = "bold")) +
   theme(legend.text=element_text(size=30)) +

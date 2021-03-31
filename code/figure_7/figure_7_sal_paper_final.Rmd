@@ -32,6 +32,7 @@ library(plotly)
 library(visdat)
 library(ggtree)
 library(Rtsne)
+library(ggridges)
 ```
 
 Metadata curation
@@ -272,14 +273,14 @@ d18 <- left_join(d17, d3b, on = "id")
 
 # Make id the rowname or index
 
-d18 <- column_to_rownames(d18, var = "id") 
+d18e <- column_to_rownames(d18, var = "id") 
 
 # Create the tree
 
 i1 <- ggtree(tree, layout = "circular") + xlim(-50, NA)
 
 
-f1 <- gheatmap(i1, d18, offset=.0, width=10, colnames = FALSE) +
+f1 <- gheatmap(i1, d18e, offset=.0, width=10, colnames = FALSE) +
   scale_fill_manual(values = c("darkblue", "gray", "coral", 
                                "darkred", "darkblue", 
                                  "black", "orange",
@@ -307,7 +308,7 @@ f1
 Plot the temporal changes in the clusters over time
 
 ```{r, include = FALSE}
-d19 <- rownames_to_column(d18, var = "id")
+d19 <- rownames_to_column(d18e, var = "id")
 
 data1 <- d19 %>%
               select(pca, year, source) %>%
@@ -543,6 +544,117 @@ plot2 <- ggplot(data1, aes(x = prop, y = source, fill = pca)) + xlim(0, 101) +
   scale_fill_manual(name = "PCA-clusters", values=c("darkblue", "gray")) +
     geom_bar(position="stack", stat="identity")
 plot2
+
+##################################################################
+
+# Plot whole-genome distance using mash 
+
+d17 <- d16 %>% select(id, pca_cluster, source)
+
+d18 <- read_tsv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/assemblies_kmer/ref_infantis_table.csv', col_names = TRUE)
+
+# merge files
+
+d19 <- left_join(d17, d18, on = "id")
+d19 <- d19 %>% mutate(pca = ifelse(pca_cluster == "1", "Cluster 1", "Cluster 2"))
+d19$pca <- factor(d19$pca, levels=c("Cluster 1", "Cluster 2"))
+d20 <- column_to_rownames(d19, var = "id")
+d21 <- d20 %>% select(pca, distance)
+d22 <- d21 %>% group_by(pca) %>% mutate(sdx = sd(distance))
+
+# plot distance distribution
+
+p1 <- ggplot(d19, aes(x = distance, y = pca, color = pca)) +
+  geom_jitter(width = 0.01, size = 3) +
+  xlim(-0.1, 0.5) +
+  theme_minimal() + 
+  theme(legend.position = "none") +
+  xlab("Whole-genome Kmer-based distance") +
+  ylab("") +
+  theme(axis.text.y = element_text(size = 30)) +
+  theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 30)) +
+  theme(strip.text.x = element_text(size = 35)) +
+  scale_color_manual(values=c("darkblue", "darkred")) 
+p1
+
+# calculate and plot the median and range of the kmer distance
+data_summary <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(median = median(x[[col]], na.rm=TRUE),
+      mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE),
+      range = range(x[[col]], na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+df2 <- data_summary(d21, varname="distance", 
+                    groupnames=c("pca"))
+
+p2 <- ggplot(df2, aes(x = median, y = pca, color = pca)) + 
+geom_pointrange(aes(xmin = median-range1, xmax = median+range2, size = 4)) +
+  xlim(0, 0.3) +
+  theme_classic() + 
+  theme(legend.position = "none") +
+  xlab("Whole-genome Kmer-based distance") +
+  ylab("") +
+  theme(axis.text.y = element_blank(),
+  axis.ticks.y = element_blank()) +
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  #theme(axis.text.y = element_text(size = 40)) +
+  theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.title.x = element_text(size = 45, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 50)) +
+  scale_color_manual(values=c("darkblue", "darkred")) 
+p2
+
+# plot by source
+
+d20 <- column_to_rownames(d19, var = "id")
+d21 <- d20 %>% select(source, distance)
+# calculate and plot the median and range of the kmer distance
+data_summary <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(median = median(x[[col]], na.rm=TRUE),
+      mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE),
+      range = range(x[[col]], na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+df3 <- data_summary(d21, varname="distance", 
+                    groupnames=c("source"))
+df3$source <- factor(df3$source, levels=c("Bovine", "Human", "Poultry", "Swine", "Environmental/Others"))
+
+
+p3 <- ggplot(df3, aes(x = median, y = source, color = source)) + 
+geom_pointrange(aes(xmin = median-range1, xmax = median+range2, size = 4)) +
+  xlim(0, 0.31) +
+  theme_classic() + 
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("") +
+  theme(axis.text.y = element_blank(),
+  axis.ticks.y = element_blank()) +
+   theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  xlab("Whole-genome Kmer-based distance") +
+  #theme(axis.text.y = element_text(size = 40)) +
+  #theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.title.x = element_text(size = 45, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 50)) +
+  scale_color_manual(values=c("gray", "darkgreen", "darkblue", "coral", "purple")) 
+p3
 ```
 Plot the temporal changes of the cgmlst over time
 
@@ -642,7 +754,36 @@ plot2 <- ggplot(data1, aes(x = year, y = prop, color = cgmlst, group = cgmlst)) 
   theme(legend.key.width = unit(3,"cm")) +
   facet_wrap(~source) 
 plot2
+
+# distribution of major cgmlsts across cluster
+
+data2 <- d7 %>%
+              select(pca, cgmlst) %>%
+              drop_na() %>%
+              group_by(pca, cgmlst) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) 
+
+data2$cgmlst <- factor(data2$cgmlst, levels=c("cgMLST 2242423463", "cgMLST 3873414194", 
+                                              "cgMLST 1267535865", "cgMLST 1582303201",
+                                              "cgMLST 1999638313", "cgMLST 3087372233",
+                                              "Other cgMLSTs"))
+plot2 <- ggplot(data2, aes(x = prop, y = pca, fill = cgmlst)) + xlim(0, 101) +
+  theme_bw() +  xlab("Proportion") +
+  ylab("") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 35)) +
+  theme(axis.title.x = element_text(size = 40, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 40)) +
+  theme(strip.text.x = element_text(size = 30, face = "bold")) +
+  theme(legend.title=element_text(size=35, face = "bold"))+
+  theme(legend.text=element_text(size=30)) +
+  scale_fill_manual(name = "cgMLST variants", values=c("black", "purple", "darkgreen", "gray", 
+  "darkblue", "red", "orange")) +
+    geom_bar(position="stack", stat="identity")
+plot2
 ```
+
 
 Simpson index of diversity of clusters based on cgMLST and baps2-6
 
@@ -944,9 +1085,9 @@ plot1 <- ggplot(d5, aes(x = baps, y = prop, fill = pca))  + xlim(0, 100) +
   theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 25)) +
   theme(legend.title=element_text(size=35, face = "bold"))+
   theme(legend.text=element_text(size=25)) +
-  scale_fill_manual(name = "PCA-clusters", values=c("darkblue", "gray")) +
+  scale_fill_manual(name = "PCA-clusters", values=c("darkblue", "orange")) +
   theme(strip.text.x = element_text(size = 35)) +
-  facet_wrap(~group, ncol = 2) 
+  facet_wrap(~group, ncol = 3) 
 plot1
 ```
 

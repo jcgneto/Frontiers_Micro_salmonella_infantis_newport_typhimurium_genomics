@@ -1,0 +1,2284 @@
+---
+title: "figure_2_sal_paper"
+author: "Joao Carlos Gomes-Neto"
+date: "1/6/2021"
+output: html_document
+---
+
+Loading the necessary packages 
+```{r, include = FALSE}
+# Load packages
+
+library(tidyverse)
+library(skimr)
+library(RColorBrewer)
+library(gridExtra)
+library(lattice)
+library(ggpubr)
+library(vegan)
+library(reshape2)
+library(ggrepel)
+library(ggnewscale)
+library(forcats)
+library(naniar)
+library(Rtsne)
+
+# Install ggtree 
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+  # install.packages("BiocManager")
+#BiocManager::install(version = "3.11")
+
+#BiocManager::install("ggtree")
+
+# Load ggtree
+
+library(ggtree)
+```
+
+Salmonella Infantis phylogeny
+
+```{r, include = FALSE}
+# Enter the phylogeny for Typhimurium group1
+
+tree <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/infantis_phylogeny.tree")
+
+#############################################
+
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+# QC the data
+
+skim(s1)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") 
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s1, on = "id")
+d2 <- left_join(d1, sis1, on = "id")
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+a <- d2 %>%
+  group_by(ST, cgmlst_ST) %>%
+  count() %>%
+  arrange(desc(n))
+
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 2242423463, "cgMLST 2242423463",
+                                            "Other cgMLSTs"))
+
+# st
+
+d2$st <- ifelse(d2$ST == 32, "ST32", "Other STs")
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Infantis", "Infantis",
+                            "Other serovars")
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+i1 <- ggtree(tree, layout = "circular") + xlim(-50, NA)
+
+
+fig4a <- gheatmap(i1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("darkblue", "gray",
+                               "brown", "purple", 
+                                 "darkgreen", "red",
+                               "gray", "black", "orange"),
+                    breaks = c("Infantis", "Other serovars",
+                               "1", "2", "3",
+                               "ST32", "Other STs",
+                               "cgMLST 2242423463", "Other cgMLSTs"),
+                    name="Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+    ggtitle(expression(bold(paste("A. Hierarchical population structure - ", bolditalic(S),". Infantis")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=26, face = "bold"), 
+    legend.text=element_text(size=22))
+fig4a
+```
+
+Salmonella infantis - distribution of SNPs 
+
+```{r, include = FALSE}
+
+# enter the snp data
+
+data1 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/distance_snp_sites_infantis_columns.csv')
+
+# filter out distance between itself
+
+data2 <- data1 %>% filter_(~id_1 != id_2)
+
+# distribution of snps 
+
+summary(data2$dist)
+
+# Generate quantiles
+
+data3 <- data2 %>% 
+             summarize(quartile = quantile(dist, probs = c(0.25, 0.5, 0.75, 1)))
+data3
+
+# creating a quartile variable for distribution of snps
+
+data2 <- data2 %>% mutate(quartile = case_when(dist <= 36 ~ "quartile 1",
+                                                 dist <= 122 ~ "quartile 2",
+                                                 dist <= 157 ~ "quartile 3",
+                                                 dist > 127368 ~ "quartile 4"))
+
+# Plot the distribution of SNPs
+
+snpinf <- ggplot(data2, aes(x = dist)) +
+  geom_histogram(bins = 10, fill = "darkblue") +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("Number of SNPs") +
+  ylab("Frequency") +
+  theme(axis.text.y = element_text(size = 40)) +
+  theme(axis.title.y = element_text(size = 45, face = "bold")) +
+  theme(axis.title.x = element_text(size = 45, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 40)) +
+  ggtitle("") +
+  theme(plot.title = element_text(size = 50, face = "bold")) + 
+  annotate(geom = "text", label = "Mean = 723", x = 5e+04, y = 6e+06, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "Median = 122", x = 5e+04, y = 5e+06, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "SD = 5,385", x = 5e+04, y = 4e+06, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "Range (0-127,368)", x = 5e+04, y = 3e+06, 
+                                  color = "black", size = 18) 
+snpinf
+
+# get stats on snp dist
+
+snpstats <- data2 %>% 
+           summarize(mu = round(mean(dist)), sdx = round(sd(dist)), median = round(median(dist)), rangex = round(range(dist)))
+snpstats
+```
+
+Salmonella Infantis population structure - relative frequencies
+
+```{r, include = FALSE}
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+# st
+
+s1$st <- ifelse(s1$ST == 32, "ST32", "Other STs")
+
+data1 <- s1
+
+# check the number of unique STs 
+
+a <- data1 %>% select(ST) %>% drop_na() %>% distinct(ST) %>% count()
+a
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") 
+
+sis1$serovar <- ifelse(sis1$serovar_cgmlst == "Infantis", "Infantis",
+                            "Other serovars")
+
+data2 <- sis1
+
+# check the number of unique cgmlts 
+
+a <- data2 %>% select(cgmlst_ST) %>% drop_na() %>% distinct(cgmlst_ST) %>% count()
+a
+
+############################################################
+
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps %>% 
+              select(id, baps_1)
+
+
+data3 <- b1
+
+# check the number of unique baps1 sub-groups
+
+a <- data3 %>% select(baps_1) %>% drop_na() %>% distinct(baps_1) %>% count()
+a
+############################################################################
+
+# Merge data1 and data2
+
+data_1_2 <- left_join(data1, data2, on = "id")
+
+# Merge data_1_2 with data_baps
+
+data4 <- left_join(data_1_2, data3, on = "id")
+
+
+data5 <- data4 %>% 
+                select(id, st, cgmlst_ST, serovar, baps_1)
+
+############################################################################
+
+# Plot Serovar distribution
+
+serovar_data <- data5 %>%
+              drop_na(serovar) %>%
+              select(serovar) %>%
+              group_by(serovar) %>%
+              summarise(n = n()) %>%
+              mutate(prop_serovar = n/sum(n)*100) 
+
+
+sero_plot <- ggplot(serovar_data, aes(x = prop_serovar, y = serovar, fill = serovar)) + xlim(0, 100) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  ylab("") +
+  xlab("Proportion") +
+  theme(axis.text.y = element_text(size = 30)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 30, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 26)) +
+  scale_fill_manual(values=c("darkblue", "gray")) +
+   ggtitle("Serovar") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  geom_col() +
+  annotate(geom = "text", label = "n = 1,686 genomes", x = 50, y = 2, 
+                                  color = "black", size = 8)
+sero_plot
+
+##################################################################################
+
+# Plot ST distribution
+
+st_data <- data5 %>%
+              drop_na(serovar, st) %>%
+              select(serovar, st) %>%
+              group_by(serovar, st) %>%
+              summarise(n = n()) %>%
+              mutate(prop_st = n/sum(n)*100) %>%
+              filter(serovar != "Other serovars")
+st_data$st <- factor(st_data$st, levels=c("ST32", "Other STs"))
+
+
+st_plot <- ggplot(st_data, aes(x = st, y = prop_st, fill = st)) + ylim(0, 105) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("Proportion") +
+  theme(axis.text.y = element_text(size = 27)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 30)) +
+  scale_fill_manual(values=c("red", "beige")) +
+  ggtitle("ST") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  theme(strip.text.x = element_text(size = 20)) +
+  geom_col() 
+st_plot
+
+#############################################################
+
+# Plot cgMLST distribution
+
+cgmlst_data <- data5 %>%
+              drop_na(serovar, cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(serovar, cgmlst_ST) %>%
+              group_by(serovar, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(prop_cgmlst = n/sum(n)*100) %>%
+              arrange(serovar, desc(prop_cgmlst)) %>%
+              filter(serovar != "Other serovars" & cgmlst_ST != "0" & prop_cgmlst > 2)
+
+cgmlst_plot <- ggplot(cgmlst_data, aes(x = reorder(cgmlst_ST, -prop_cgmlst), y = prop_cgmlst, fill = cgmlst_ST)) + ylim(0, 100) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("cgMLST clones") +
+  ylab("Proportion") +
+  theme(axis.text.y = element_text(size = 25)) +
+  theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 25)) +
+  scale_fill_manual(values=c("red", "beige", "aliceblue", "darkgreen", "black", "brown", "orange", "gray")) +
+  labs(fill="cgMLST clones") + 
+  ggtitle("cgMLST") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  geom_col() +
+  annotate(geom = "text", label = "> 2%", x = 3, y = 90, 
+                                  color = "black", size = 8)
+cgmlst_plot
+
+################################################################
+
+# Plot baps1 through 6 distribution by serovar
+
+baps_data <- data5 %>%
+              drop_na(serovar, baps_1) %>%
+              select(serovar, baps_1) %>%
+              group_by(serovar, baps_1) %>%
+              summarise(n = n()) %>%
+              mutate(prop = n/sum(n)*100) %>%
+              filter(serovar != "Other serovars")
+baps_data$baps_1 <- factor(baps_data$baps_1, levels=c("3", "1"))
+
+baps_plot <- ggplot(baps_data, aes(x = baps_1, y = prop, fill = baps_1)) + ylim(0, 105) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("Proportion") +
+  theme(axis.text.y = element_text(size = 30)) +
+  theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, size = 30)) +
+  scale_fill_manual(name = "Serovar", values=c("darkgreen", "brown")) +
+  ggtitle("BAPS level 1") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  theme(strip.text.x = element_text(size = 20)) +
+  geom_col() 
+baps_plot
+
+fig4be  <- ggarrange(sero_plot, baps_plot, st_plot, cgmlst_plot,
+                  nrow = 2, ncol = 2, widths = c(10, 10, 10, 10),
+                heights = c(1, 1, 1, 1))
+fig4be
+```
+
+Simpson diversity using ST, cgmlst, and baps 1-6 S. Infantis
+
+```{r, include = FALSE}
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+data1 <- s1
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+              mutate(cgMLST = cgmlst_ST)
+
+sis1$serovar <- ifelse(sis1$serovar_cgmlst == "Infantis", "Infantis",
+                            "Other serovars")
+
+data2 <- sis1
+
+############################################################
+
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:7] <- c("id", "BAPS1", "BAPS2", "BAPS3", "BAPS4", "BAPS5", "BAPS6") 
+
+
+data3 <- baps
+
+# Merge 
+
+data4 <- left_join(data1, data2, on = "id")
+
+# Merge
+
+data5 <- left_join(data3, data4, on = "id")
+
+####################################################
+
+# ST diversity 
+
+st_div <- data5 %>%
+              drop_na(serovar, ST) %>%
+              mutate(ST = as.factor(ST)) %>%
+              select(serovar, ST) %>%
+              group_by(serovar, ST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "ST")
+
+######################################
+
+# cgMLST diversity 
+
+cgmlst_div <- data5 %>%
+              drop_na(serovar, cgMLST) %>%
+              mutate(cgMLST = as.factor(cgMLST)) %>%
+              select(serovar, cgMLST) %>%
+              group_by(serovar, cgMLST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "cgMLST")
+
+#####################################
+
+# Baps based diversity 
+
+# Baps1
+baps1 <- data5 %>%
+              select(serovar, BAPS1) %>%
+              drop_na(serovar, BAPS1) %>%
+              group_by(serovar, BAPS1) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS1")
+
+# Baps2
+baps2 <- data5 %>%
+              select(serovar, BAPS2) %>%
+              drop_na(serovar, BAPS2) %>%
+              group_by(serovar, BAPS2) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS2")
+
+
+# Baps3
+baps3 <- data5 %>%
+              select(serovar, BAPS3) %>%
+              drop_na(serovar, BAPS3) %>%
+              group_by(serovar, BAPS3) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS3")
+
+
+# Baps4
+baps4 <- data5 %>%
+              select(serovar, BAPS4) %>%
+              drop_na(serovar, BAPS4) %>%
+              group_by(serovar, BAPS4) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS4")
+
+# Baps5
+baps5 <- data5 %>%
+              select(serovar, BAPS5) %>%
+              drop_na(serovar, BAPS5) %>%
+              group_by(serovar, BAPS5) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS5")
+
+# Baps6
+baps6 <- data5 %>%
+              select(serovar, BAPS6) %>%
+              drop_na(serovar, BAPS6) %>%
+              group_by(serovar, BAPS6) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS6")
+
+# Concatenate all datasets
+
+data6 <- rbind(st_div, cgmlst_div, baps1, baps2, baps3, baps4, baps5, baps6)
+data6$strat <- factor(data6$strat, levels=c("ST", "cgMLST", "BAPS1", "BAPS2", "BAPS3",
+                                              "BAPS4", "BAPS5", "BAPS6"))
+
+
+# Plot Simpson's diversity analysis
+
+fig4f <- ggplot(data6, aes(x = strat, y = value)) + ylim(0,1.05)+
+  theme_bw() + 
+  xlab("") +
+  ylab("Index value") +
+  theme(axis.text.y = element_text(size = 45)) +
+  theme(axis.title.y = element_text(size = 50, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 45)) +
+  theme(axis.title.x = element_text(size = 26, face = "bold")) +
+  theme(strip.text.x = element_text(size = 36))+
+  ggtitle("") +
+  theme(plot.title = element_text(size = 50, face = "bold")) + 
+  theme(legend.text=element_text(size=20)) +
+  geom_bar(stat = "identity", fill="darkblue") 
+fig4f
+```
+
+Salmonella Newport phylogeny
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/newport_phylogeny.tree")
+
+#############################################
+
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/newport/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+# QC the data
+
+skim(s1)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/newport/input_data/sistr_output.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") 
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s1, on = "id")
+d2 <- left_join(d1, sis1, on = "id")
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+a <- d2 %>%
+  group_by(ST, cgmlst_ST) %>%
+  count() %>%
+  arrange(desc(n))
+
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1468400426, "cgMLST 1468400426",
+                                     ifelse(cgmlst_ST %in% 88443731, "cgMLST 88443731", 
+                                            ifelse(cgmlst_ST %in% 1271156802, "cgMLST 1271156802",
+                                            "Other cgMLSTs"))))
+
+# st
+
+d2$st <- ifelse(d2$ST == 5, "ST5", 
+                   ifelse(d2$ST == 45, "ST45", 
+                          ifelse(d2$ST == 118, "ST118", "Other STs")))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Newport", "Newport",
+                            "Other serovars")
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+n1 <- ggtree(tree, layout = "circular") + xlim(-50, NA)
+
+
+fig3a <- gheatmap(n1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "brown", "darkseagreen3", "darkcyan", "orange",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "darkgreen", "red", "black", "darkblue", "gray"),
+                    breaks = c("Newport", "Other serovars",
+                               "1", "2", "3", "4", "5", "6", "7", "8", "9",
+                               "ST5", "ST45", "ST118", "Other STs",
+                               "cgMLST 1468400426", "cgMLST 88443731", "cgMLST 1271156802", "Other cgMLSTs"),
+                    name="Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+    ggtitle(expression(bold(paste("H. Hierarchical population structure - ", bolditalic(S),". Newport")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig3a
+```
+
+Salmonella Newport - distribution of SNPs 
+
+```{r, include = FALSE}
+
+# enter the snp data
+
+data1 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/distance_snp_sites_newport_columns.csv')
+
+# filter out distance between itself
+
+data2 <- data1 %>% filter_(~id_1 != id_2)
+
+# distribution of snps 
+
+summary(data2$dist)
+
+# Generate quantiles
+
+data3 <- data2 %>% 
+             summarize(quartile = quantile(dist, probs = c(0.25, 0.5, 0.75, 1)))
+data3
+
+# get stats on snp dist
+
+snpstats <- data2 %>% 
+           summarize(mu = round(mean(dist)), sdx = round(sd(dist)), median = round(median(dist)), rangex = round(range(dist)))
+snpstats
+
+# Plot the distribution of SNPs
+
+snpnew <- ggplot(data2, aes(x = dist)) +
+  geom_histogram(bins = 10, fill = "darkblue") +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("Number of SNPs") +
+  ylab("Frequency") +
+  theme(axis.text.y = element_text(size = 40)) +
+  theme(axis.title.y = element_text(size = 45, face = "bold")) +
+  theme(axis.title.x = element_text(size = 45, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 40)) +
+  ggtitle("") +
+  theme(plot.title = element_text(size = 50, face = "bold")) + 
+  annotate(geom = "text", label = "Mean = 14,164", x = 7e+04, y = 6e+06, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "Median = 24,676", x = 7e+04, y = 5e+06, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "SD = 13,082", x = 7e+04, y = 4e+06, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "Range (0-127,985)", x = 7e+04, y = 3e+06, 
+                                  color = "black", size = 18) 
+snpnew
+```
+
+Salmonella Newport population structure - relative frequencies
+
+```{r, include = FALSE}
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+# st
+
+s1$st <- ifelse(s1$ST == 5, "ST5", 
+                   ifelse(s1$ST == 45, "ST45", 
+                          ifelse(s1$ST == 118, "ST118", "Other STs")))
+
+data1 <- s1
+
+# check the number of unique STs
+
+a <- data1 %>% select(ST) %>% drop_na() %>% distinct(ST) %>% count()
+a
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/sistr_output.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") 
+
+sis1$serovar <- ifelse(sis1$serovar_cgmlst == "Newport", "Newport",
+                            "Other serovars")
+
+data2 <- sis1
+
+# check the number of unique baps_1 sub-groups
+
+a <- data2 %>% select(cgmlst_ST) %>% drop_na() %>% distinct(cgmlst_ST) %>% count()
+a
+############################################################
+
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps %>% 
+              select(id, baps_1)
+
+
+data3 <- b1
+
+# check the number of unique baps_1
+
+a <- data3 %>% select(baps_1) %>% drop_na() %>% distinct(baps_1) %>% count()
+a
+############################################################################
+
+# Merge data1 and data2
+
+data_1_2 <- left_join(data1, data2, on = "id")
+
+# Merge data_1_2 with data_baps
+
+data4 <- left_join(data_1_2, data3, on = "id")
+
+
+data5 <- data4 %>% 
+                select(id, st, cgmlst_ST, serovar, baps_1)
+
+############################################################################
+
+# Plot Serovar distribution
+
+serovar_data <- data5 %>%
+              drop_na(serovar) %>%
+              select(serovar) %>%
+              group_by(serovar) %>%
+              summarise(n = n()) %>%
+              mutate(prop_serovar = n/sum(n)*100) 
+
+
+sero_plot <- ggplot(serovar_data, aes(x = prop_serovar, y = serovar, fill = serovar)) + xlim(0, 100) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  ylab("") +
+  xlab("Proportion") +
+  theme(axis.text.y = element_text(size = 30)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 30, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 26)) +
+  scale_fill_manual(values=c("gray", "darkblue")) +
+   ggtitle("Serovar") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  geom_col() +
+  annotate(geom = "text", label = "n = 2,365 genomes", x = 60, y = 2, 
+                                  color = "black", size = 8)
+sero_plot
+
+##################################################################################
+
+# Plot ST distribution
+
+st_data <- data5 %>%
+              drop_na(serovar, st) %>%
+              select(serovar, st) %>%
+              group_by(serovar, st) %>%
+              summarise(n = n()) %>%
+              mutate(prop_st = n/sum(n)*100) %>%
+              filter(serovar != "Other serovars")
+st_data$st <- factor(st_data$st, levels=c("ST118", "ST45", "ST5", "Other STs"))
+
+
+st_plot <- ggplot(st_data, aes(x = st, y = prop_st, fill = st)) + ylim(0, 105) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("Proportion") +
+    theme(axis.text.y = element_text(size = 28)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 30, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 28)) +
+  scale_fill_manual(values=c("purple", "darkblue", "black", "darkgreen")) +
+  ggtitle("ST") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  theme(strip.text.x = element_text(size = 20)) +
+  geom_col() 
+st_plot
+
+#############################################################
+
+# Plot cgMLST distribution
+
+cgmlst_data <- data5 %>%
+              drop_na(serovar, cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(serovar, cgmlst_ST) %>%
+              group_by(serovar, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(prop_cgmlst = n/sum(n)*100) %>%
+              arrange(serovar, desc(prop_cgmlst)) %>%
+              filter(serovar != "Other serovars" & cgmlst_ST != "0" & prop_cgmlst > 2)
+
+cgmlst_plot <- ggplot(cgmlst_data, aes(x = reorder(cgmlst_ST, -prop_cgmlst), y = prop_cgmlst, fill = cgmlst_ST)) + ylim(0, 100) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("cgMLST clones") +
+  ylab("Proportion") +
+      theme(axis.text.y = element_text(size = 28)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 30, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 28)) +
+  scale_fill_manual(values=c("black", "darkblue", "red", "darkgreen",
+                          "orange", "brown")) +
+  labs(fill="cgMLST clones") + 
+  ggtitle("cgMLST") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  geom_col() +
+  annotate(geom = "text", label = "> 2%", x = 3, y = 90, 
+                                  color = "black", size = 9)
+cgmlst_plot
+
+################################################################
+
+# Plot baps1 through 6 distribution by serovar
+
+baps_data <- data5 %>%
+              drop_na(serovar, baps_1) %>%
+              select(serovar, baps_1) %>%
+              group_by(serovar, baps_1) %>%
+              summarise(n = n()) %>%
+              mutate(prop = n/sum(n)*100) %>%
+              filter(serovar != "Other serovars")
+baps_data$baps_1 <- factor(baps_data$baps_1, levels=c("8", "1", "4", "7", "6"))
+
+baps_plot <- ggplot(baps_data, aes(x = baps_1, y = prop, fill = baps_1)) + ylim(0, 105) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("Proportion") +
+    theme(axis.text.y = element_text(size = 30)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 30, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, size = 30)) +
+  theme(legend.title=element_text(size=30, face = "bold"))+
+  theme(legend.text=element_text(size=24)) +
+  scale_fill_manual(name = "Serovar", values=c("orange", "cornflowerblue", "red", "darkcyan", "darkseagreen3")) +
+  ggtitle("BAPS level 1") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  theme(strip.text.x = element_text(size = 20)) +
+  geom_col() 
+baps_plot
+
+fig3be  <- ggarrange(sero_plot, baps_plot, st_plot, cgmlst_plot,
+                  nrow = 2, ncol = 2, widths = c(10, 10, 10, 10),
+                heights = c(1, 1, 1, 1))
+fig3be
+```
+
+
+Plot Simpson diversity using ST, cgmlst, and baps 1-6 S. Newport
+
+```{r, include = FALSE}
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'_'), "[", 1)
+
+# Select columns of interest
+
+s1 <- mlst %>%
+          select(id2, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                  rename(id = id2)
+
+data1 <- s1
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/sistr_output.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+              mutate(cgMLST = cgmlst_ST)
+
+sis1$serovar <- ifelse(sis1$serovar_cgmlst == "Newport", "Newport",
+                            "Other serovars")
+
+data2 <- sis1
+
+############################################################
+
+# Enter Baps 1-6 
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/newport/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:7] <- c("id", "BAPS1", "BAPS2", "BAPS3", "BAPS4", "BAPS5", "BAPS6") 
+
+
+data3 <- baps
+
+# Merge 
+
+data4 <- left_join(data1, data2, on = "id")
+
+# Merge
+
+data5 <- left_join(data3, data4, on = "id")
+
+####################################################
+
+# ST diversity 
+
+st_div <- data5 %>%
+              drop_na(serovar, ST) %>%
+              mutate(ST = as.factor(ST)) %>%
+              select(serovar, ST) %>%
+              group_by(serovar, ST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "ST")
+
+######################################
+
+# cgMLST diversity 
+
+cgmlst_div <- data5 %>%
+              drop_na(serovar, cgMLST) %>%
+              mutate(cgMLST = as.factor(cgMLST)) %>%
+              select(serovar, cgMLST) %>%
+              group_by(serovar, cgMLST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "cgMLST")
+
+#####################################
+
+# Baps based diversity 
+
+# Baps1
+baps1 <- data5 %>%
+              select(serovar, BAPS1) %>%
+              drop_na(serovar, BAPS1) %>%
+              group_by(serovar, BAPS1) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS1")
+
+# Baps2
+baps2 <- data5 %>%
+              select(serovar, BAPS2) %>%
+              drop_na(serovar, BAPS2) %>%
+              group_by(serovar, BAPS2) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS2")
+
+
+# Baps3
+baps3 <- data5 %>%
+              select(serovar, BAPS3) %>%
+              drop_na(serovar, BAPS3) %>%
+              group_by(serovar, BAPS3) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS3")
+
+
+# Baps4
+baps4 <- data5 %>%
+              select(serovar, BAPS4) %>%
+              drop_na(serovar, BAPS4) %>%
+              group_by(serovar, BAPS4) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS4")
+
+# Baps5
+baps5 <- data5 %>%
+              select(serovar, BAPS5) %>%
+              drop_na(serovar, BAPS5) %>%
+              group_by(serovar, BAPS5) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS5")
+
+# Baps6
+baps6 <- data5 %>%
+              select(serovar, BAPS6) %>%
+              drop_na(serovar, BAPS6) %>%
+              group_by(serovar, BAPS6) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS6")
+
+# Concatenate all datasets
+
+data6 <- rbind(st_div, cgmlst_div, baps1, baps2, baps3, baps4, baps5, baps6)
+data6$strat <- factor(data6$strat, levels=c("ST", "cgMLST", "BAPS1", "BAPS2", "BAPS3",
+                                              "BAPS4", "BAPS5", "BAPS6"))
+
+
+# Plot Simpson's diversity analysis
+
+fig3f <- ggplot(data6, aes(x = strat, y = value)) + ylim(0,1.05)+
+  theme_bw() + 
+  xlab("") +
+  ylab("Index value") +
+  theme(axis.text.y = element_text(size = 45)) +
+  theme(axis.title.y = element_text(size = 50, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 45)) +
+  theme(axis.title.x = element_text(size = 26, face = "bold")) +
+  theme(strip.text.x = element_text(size = 36))+
+  ggtitle("") +
+  theme(plot.title = element_text(size = 50, face = "bold")) + 
+  theme(legend.text=element_text(size=20)) +
+  geom_bar(stat = "identity", fill="darkblue") 
+fig3f
+```
+
+
+Salmonella Typhimurium phylogeny with metadata using group1 as a representative 
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group_1 <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/group_1/input_data/typhimurium_phylogeny_gr1.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group_1 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/group_1/input_data/roary_output_gr1.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group_1)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group_1 %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group_1, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "red", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("O. Hierarchical population structure - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+Salmonella Typhimurium - distribution of SNPs 
+
+```{r, include = FALSE}
+
+# enter the snp data
+
+data1 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_1/input_data/distance_snp_sites_typhimurium_1_columns.csv')
+
+data2 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_2/input_data/distance_snp_sites_typhimurium_2_columns.csv')
+
+data3 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_3/input_data/distance_snp_sites_typhimurium_3_columns.csv')
+
+data4 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_4/input_data/distance_snp_sites_typhimurium_4_columns.csv')
+
+data5 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_5/input_data/distance_snp_sites_typhimurium_5_columns.csv')
+
+data6 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_6/input_data/distance_snp_sites_typhimurium_6_columns.csv')
+
+data7 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_7/input_data/distance_snp_sites_typhimurium_7_columns.csv')
+
+data8 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_8/input_data/distance_snp_sites_typhimurium_8_columns.csv')
+
+data9 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_9/input_data/distance_snp_sites_typhimurium_9_columns.csv')
+
+data10 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_10/input_data/distance_snp_sites_typhimurium_10_columns.csv')
+
+data11 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_11/input_data/distance_snp_sites_typhimurium_11_columns.csv')
+
+data12 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_12/input_data/distance_snp_sites_typhimurium_12_columns.csv')
+
+data13 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_13/input_data/distance_snp_sites_typhimurium_13_columns.csv')
+
+data14 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_14/input_data/distance_snp_sites_typhimurium_14_columns.csv')
+
+data15 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_15/input_data/distance_snp_sites_typhimurium_15_columns.csv')
+
+data16 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_16/input_data/distance_snp_sites_typhimurium_16_columns.csv')
+
+data17 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_17/input_data/distance_snp_sites_typhimurium_17_columns.csv')
+
+data18 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_18/input_data/distance_snp_sites_typhimurium_18_columns.csv')
+
+data19 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_19/input_data/distance_snp_sites_typhimurium_19_columns.csv')
+
+data20 <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_20/input_data/distance_snp_sites_typhimurium_20_columns.csv')
+
+# concatenate the datasets
+
+data21 <- bind_rows(data1, data2, data3, data4, data5, data6, data7, data8, data9,
+                    data10, data11, data12, data13, data14, data15, data16, data17, data18,
+                    data19, data20)
+
+# filter out distance between itself
+
+data22 <- data21 %>% filter_(~id_1 != id_2)
+
+# distribution of snps 
+
+summary(data22$dist)
+
+# Generate quantiles
+
+data23 <- data22 %>% 
+             summarize(quartile = quantile(dist, probs = c(0.25, 0.5, 0.75, 1)))
+data23
+
+# get stats on snp dist
+
+snpstats <- data22 %>% 
+           summarize(mu = round(mean(dist)), sdx = round(sd(dist)), median = round(median(dist)), rangex = round(range(dist)))
+snpstats
+
+# Plot the distribution of SNPs
+
+snptyphi <- ggplot(data22, aes(x = dist)) +
+  geom_histogram(bins = 10, fill = "darkblue") +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("Number of SNPs") +
+  ylab("Frequency") +
+  theme(axis.text.y = element_text(size = 40)) +
+  theme(axis.title.y = element_text(size = 45, face = "bold")) +
+  theme(axis.title.x = element_text(size = 45, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 40)) +
+  ggtitle("") +
+  theme(plot.title = element_text(size = 50, face = "bold")) + 
+  annotate(geom = "text", label = "Mean = 1,474", x = 50000, y = 2e+07, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "Median = 281", x = 50000, y = 1.5e+07, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "SD = 4,547", x = 50000, y = 1e+07, 
+                                  color = "black", size = 18) +
+  annotate(geom = "text", label = "Range (0-97,140)", x = 50000, y = 5e+06, 
+                                  color = "black", size = 18) 
+snptyphi
+```
+
+Salmonella Typhimurium population structure - relative frequencies
+
+```{r, include = FALSE}
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+# st
+
+s2$st <- ifelse(s2$ST == 19, "ST19", 
+                   ifelse(s2$ST == 34, "ST34", 
+                          ifelse(s2$ST == 36, "ST36",
+                                 ifelse(s2$ST == 313, "ST313", "Other STs"))))
+
+# Create data1 
+
+data1 <- s2 
+
+# check the number of unique STs
+
+a <- data1 %>% select(ST) %>% drop_na() %>% distinct(ST) %>% count()
+a
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+sis1$serovar <- ifelse(sis1$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(sis1$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+
+# Create data2 and drop rows with missing values
+
+data2 <- sis1 
+
+# check the number of unique cgmlsts
+
+a <- data2 %>% select(cgmlst_ST) %>% drop_na() %>% distinct(cgmlst_ST) %>% count()
+a
+
+##########################################################################
+
+# Enter group1-Baps
+
+# Enter the data, create a new column for group, and generate the id column
+data3 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_1/input_data/roary_output_gr1.fastbaps_l6.csv")
+data3$group <- "group_1"
+colnames(data3)[1] <- "id"
+
+###########################################################################
+
+# Enter group2-Baps
+
+# Enter the data, create a new column for group, and generate the id column
+
+data4 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr2.fastbaps_l6.csv")
+data4$group <- "group_2"
+colnames(data4)[1] <- "id"
+
+###########################################################################
+
+# Enter group3-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data5 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr3.fastbaps_l6.csv")
+data5$group <- "group_3"
+colnames(data5)[1] <- "id"
+
+###########################################################################
+
+# Enter group4-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data6 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr4.fastbaps_l6.csv")
+data6$group <- "group_4"
+colnames(data6)[1] <- "id"
+
+###########################################################################
+
+# Enter group5-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data7 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr5.fastbaps_l6.csv")
+data7$group <- "group_5"
+colnames(data7)[1] <- "id"
+
+###########################################################################
+
+# Enter group6-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data8 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr6.fastbaps_l6.csv")
+data8$group <- "group_6"
+colnames(data8)[1] <- "id"
+
+###########################################################################
+
+# Enter group7-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data9 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr7.fastbaps_l6.csv")
+data9$group <- "group_7"
+colnames(data9)[1] <- "id"
+
+###########################################################################
+
+# Enter group8-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data10 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr8.fastbaps_l6.csv")
+data10$group <- "group_8"
+colnames(data10)[1] <- "id"
+
+###########################################################################
+
+# Enter group9-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data11 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr9.fastbaps_l6.csv")
+data11$group <- "group_9"
+colnames(data11)[1] <- "id"
+
+###########################################################################
+
+# Enter group10-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data12 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr10.fastbaps_l6.csv")
+data12$group <- "group_10"
+colnames(data12)[1] <- "id"
+
+###########################################################################
+
+# Enter group11-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data13 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr11.fastbaps_l6.csv")
+data13$group <- "group_11"
+colnames(data13)[1] <- "id"
+
+###########################################################################
+
+# Enter group12-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data14 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr12.fastbaps_l6.csv")
+data14$group <- "group_12"
+colnames(data14)[1] <- "id"
+
+###########################################################################
+
+# Enter group13-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data15 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr13.fastbaps_l6.csv")
+data15$group <- "group_13"
+colnames(data15)[1] <- "id"
+
+###########################################################################
+
+# Enter group14-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data16 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr14.fastbaps_l6.csv")
+data16$group <- "group_14"
+colnames(data16)[1] <- "id"
+
+###########################################################################
+
+# Enter group15-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data17 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr15.fastbaps_l6.csv")
+data17$group <- "group_15"
+colnames(data17)[1] <- "id"
+
+###########################################################################
+
+# Enter group16-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data18 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr16.fastbaps_l6.csv")
+data18$group <- "group_16"
+colnames(data18)[1] <- "id"
+
+###########################################################################
+
+# Enter group17-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data19 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr17.fastbaps_l6.csv")
+data19$group <- "group_17"
+colnames(data19)[1] <- "id"
+
+###########################################################################
+
+# Enter group18-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data20 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr18.fastbaps_l6.csv")
+data20$group <- "group_18"
+colnames(data20)[1] <- "id"
+
+###########################################################################
+
+# Enter group19-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data21 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr19.fastbaps_l6.csv")
+data21$group <- "group_19"
+colnames(data21)[1] <- "id"
+
+###########################################################################
+
+# Enter group20-Baps
+# Enter the data, create a new column for group, and generate the id column
+
+data22 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/roary_output_gr20.fastbaps_l6.csv")
+data22$group <- "group_20"
+colnames(data22)[1] <- "id"
+
+###########################################################################
+
+# First merge all Baps datasets 
+
+data_baps <- bind_rows(data3, data4, data5, data6, data7, data8,
+                       data9, data10, data11, data12, data13, data14, 
+                       data15, data16, data17, data18, data19, data20, 
+                       data21, data22)
+
+colnames(data_baps)[2:7] <- c("baps_1", "baps_2", "baps_3", "baps_4", "baps_5", "baps_6")
+
+# check the number of unique baps_1  sub-groups
+
+a <- data_baps %>% select(baps_1) %>% drop_na() %>% distinct(baps_1) %>% count()
+a
+############################################################################
+
+# Merge data1 and data2
+
+data_1_2 <- left_join(data1, data2, on = "id")
+
+# Merge data_1_2 with data_baps
+
+data23 <- left_join(data_1_2, data_baps, on = "id")
+glimpse(data23)
+
+data23b <- data23 %>% 
+                select(id, group, st, cgmlst_ST, serovar, baps_1)
+############################################################################
+
+# baps1 between monophasic vs biphasic
+
+a <- data23 %>% select(serovar, baps_1) %>% drop_na() %>% group_by(serovar, baps_1) %>% distinct()
+b <- a %>% filter(serovar == "Biphasic") %>% count() 
+m <- a %>% filter(serovar == "Monophasic") %>% count() 
+o <- a %>% filter(serovar == "Other serovars") %>% count() 
+
+# st between monophasic vs biphasic
+
+a <- data23 %>% select(serovar, ST) %>% drop_na() %>% group_by(serovar, ST) %>% distinct()
+b <- a %>% filter(serovar == "Biphasic") %>% count() 
+m <- a %>% filter(serovar == "Monophasic") %>% count() 
+o <- a %>% filter(serovar == "Other serovars") %>% count() 
+
+# cgmlst between monophasic vs biphasic
+
+a <- data23 %>% select(serovar, cgmlst_ST) %>% drop_na() %>% group_by(serovar, cgmlst_ST) %>% distinct()
+b <- a %>% filter(serovar == "Biphasic") %>% count() 
+m <- a %>% filter(serovar == "Monophasic") %>% count() 
+o <- a %>% filter(serovar == "Other serovars") %>% count() 
+
+############################################################################
+
+# Plot Serovar distribution
+
+serovar_data <- data23b %>%
+              drop_na(serovar) %>%
+              select(group, serovar) %>%
+              group_by(group, serovar) %>%
+              summarise(n = n()) %>%
+              mutate(prop_serovar = n/sum(n)*100) 
+serovar_data$serovar <- factor(serovar_data$serovar, levels=c("Biphasic",
+                                                              "Monophasic",
+                                                              "Other serovars"))
+
+sero_plot <- ggplot(serovar_data, aes(x = prop_serovar, y = serovar, fill = serovar)) + xlim(0, 100) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("Proportion") +
+  ylab("") +
+theme(axis.text.y = element_text(size = 35)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 30, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.7, size = 26)) +
+  scale_fill_manual(values=c("gray", "darkblue", "lightblue")) +
+  ggtitle("Serovar") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+   #ggtitle(expression(bold(paste("B. ", bolditalic(S),". Typhimurium", " - Serovar")))) +
+  #ggtitle(label = "B.",
+  #subtitle = "Serovar") +
+  #theme(plot.title = element_text(size = 50, face = "bold"),
+        #plot.subtitle = element_text(size = 26, face = "bold")) + 
+  geom_boxplot() +
+  annotate(geom = "text", label = "n = 21,534 genomes", x = 60, y = 3, 
+                                  color = "black", size = 7)
+sero_plot
+
+##################################################################################
+
+# Plot ST distribution
+
+st_data <- data23b %>%
+              drop_na(serovar, st) %>%
+              select(group, serovar, st) %>%
+              group_by(group, serovar, st) %>%
+              summarise(n = n()) %>%
+              mutate(prop_st = n/sum(n)*100) %>%
+              filter(serovar != "Other serovars")
+st_data$st <- factor(st_data$st, levels=c("ST19", "ST34", "ST36", "ST313", "Other STs"))
+
+# Calculate a chi-square p-value for independence 
+st_data2 <- data23b %>%
+              drop_na(serovar, st)
+chisq_st <- chisq.test(table(st_data2$serovar,st_data2$st))
+chisq_st
+
+st_plot <- ggplot(st_data, aes(x = st, y = prop_st, fill = st)) + ylim(0, 105) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("Proportion") +
+theme(axis.text.y = element_text(size = 22)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 25)) +
+  theme(legend.title=element_text(size=30, face = "bold"))+
+  theme(legend.text=element_text(size=24)) +
+  scale_fill_manual(values=c("darkgreen", "darkblue", "gray", "red", "black")) +
+  ggtitle("ST") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  theme(strip.text.x = element_text(size = 20)) +
+  geom_boxplot() +
+  annotate(geom = "text", label = "italic(p) < 2.2e-16", x = 3.5, y = 75, 
+                                  color = "black", size = 7, parse = TRUE) +
+  facet_wrap(~ serovar)
+st_plot
+
+#############################################################
+
+# Plot cgMLST distribution
+
+cgmlst_data <- data23b %>%
+              drop_na(serovar, cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(group, serovar, cgmlst_ST) %>%
+              group_by(group, serovar, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(prop_cgmlst = n/sum(n)*100) %>%
+              arrange(group, serovar, desc(prop_cgmlst)) %>%
+              filter(serovar != "Other serovars" & cgmlst_ST != "0" & prop_cgmlst > 2)
+
+cgmlst_plot <- ggplot(cgmlst_data, aes(x = reorder(cgmlst_ST, -prop_cgmlst), y = prop_cgmlst, fill = cgmlst_ST)) + ylim(0, 100) +
+  theme_bw() + 
+  theme(legend.position = "none") +
+  xlab("cgMLST clones") +
+  ylab("Proportion") +
+theme(axis.text.y = element_text(size = 22)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 20)) +
+  theme(strip.text.x = element_text(size = 25)) +
+  scale_fill_manual(values=c("red", "darkblue", "gray", "darkgreen",
+                          "orange", "yellow", "purple", "white", "black", "brown")) +
+  #scale_fill_gradient2(name = "cgmlst_ST", 
+                        #low = "blue", high = "red") +
+  labs(fill="cgMLST clones") + 
+  ggtitle("cgMLST") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  geom_boxplot(position = position_dodge(0.9)) +
+  annotate(geom = "text", label = "> 2%", x = 3, y = 75, 
+                                  color = "black", size = 8) +
+  facet_wrap(~serovar)
+cgmlst_plot
+
+################################################################
+
+# Plot baps1 through 6 distribution by serovar
+
+baps_data <- data23b %>%
+              drop_na(serovar, baps_1) %>%
+              select(group, serovar, baps_1) %>%
+              group_by(group, serovar, baps_1) %>%
+              summarise(n = n()) %>%
+              mutate(prop = n/sum(n)*100) %>%
+              filter(serovar != "Other serovars")
+baps_data$baps_1 <- factor(baps_data$baps_1, levels=c("1", "2", "3", "4", "5", "6"))
+
+baps_plot <- ggplot(baps_data, aes(x = baps_1, y = prop, fill = serovar)) + ylim(0, 105) +
+  theme_bw() + 
+  #theme(legend.position = "none") +
+  xlab("") +
+  ylab("Proportion") +
+theme(axis.text.y = element_text(size = 30)) +
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 0, size = 28)) +
+  scale_fill_manual(name = "Serovar", values=c("gray", "darkblue")) +
+  ggtitle("BAPS level 1") +
+  theme(plot.title = element_text(size = 40, face = "bold")) + 
+  theme(strip.text.x = element_text(size = 20)) +
+  theme(legend.title=element_text(size=30, face = "bold")) +
+  theme(legend.text=element_text(size=24)) +
+  geom_boxplot() 
+baps_plot
+
+fig2be  <- ggarrange(sero_plot, baps_plot, st_plot, cgmlst_plot,
+                  nrow = 2, ncol = 2, widths = c(10, 10, 10, 10),
+                heights = c(1, 1, 1, 1))
+fig2be
+```
+
+
+Plot Genomic diversity analysis at the ST, cgMLST, and BAPS1-6 levels for S. Typhimurium
+
+```{r, include = FALSE}
+
+# ST diversity 
+
+st_div <- data23 %>%
+              drop_na(ST, serovar) %>%
+              mutate(ST = as.factor(ST)) %>%
+              select(group, serovar, ST) %>%
+              group_by(group, serovar, ST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "ST")
+
+# Compute t-test
+simpttest <- t.test(value ~ serovar, data = st_div)
+simpttest
+
+######################################
+
+# cgMLST diversity 
+
+cgmlst_div <- data23 %>%
+              drop_na(cgmlst_ST, serovar) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(group, serovar, cgmlst_ST) %>%
+              group_by(group, serovar, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "cgMLST")
+
+# Compute t-test
+simpttest <- t.test(value ~ serovar, data = cgmlst_div)
+simpttest
+
+#####################################
+
+# Baps based diversity 
+
+# Baps1
+baps1 <- data23 %>%
+              select(group, serovar, baps_1) %>%
+              drop_na(group, serovar, baps_1) %>%
+              group_by(group, serovar, baps_1) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS1")
+
+# Compute t-test
+
+b1simp <- t.test(value ~ serovar, data = baps1)
+b1simp
+
+# Baps2
+baps2 <- data23 %>%
+              select(group, serovar, baps_2) %>%
+              drop_na(group, serovar, baps_2) %>%
+              group_by(group, serovar, baps_2) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS2")
+
+
+# Compute t-test
+b2simp <- t.test(value ~ serovar, data = baps2)
+b2simp
+
+# Baps3
+baps3 <- data23 %>%
+              select(group, serovar, baps_3) %>%
+              drop_na(group, serovar, baps_3) %>%
+              group_by(group, serovar, baps_3) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS3")
+
+# Compute t-test
+
+b3simp <- t.test(value ~ serovar, data = baps3)
+b3simp
+
+# Baps4
+baps4 <- data23 %>%
+              select(group, serovar, baps_4) %>%
+              drop_na(group, serovar, baps_4) %>%
+              group_by(group, serovar, baps_4) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS4")
+
+# Compute t-test
+
+b4simp <- t.test(value ~ serovar, data = baps4)
+b4simp
+
+# Baps5
+baps5 <- data23 %>%
+              select(group, serovar, baps_5) %>%
+              drop_na(group, serovar, baps_5) %>%
+              group_by(group, serovar, baps_5) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS5")
+
+# Compute t-test
+
+b5simp <- t.test(value ~ serovar, data = baps5)
+b5simp
+
+# Baps6
+baps6 <- data23 %>%
+              select(group, serovar, baps_6) %>%
+              drop_na(group, serovar, baps_6) %>%
+              group_by(group, serovar, baps_6) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              filter(serovar != "Other serovars") %>%
+              group_by(group, serovar) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("group", "serovar"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS6")
+
+# Compute t-test
+
+b6simp <- t.test(value ~ serovar, data = baps6)
+b6simp
+
+
+# Concatenate all datasets
+
+data24 <- rbind(st_div, cgmlst_div, baps1, baps2, baps3, baps4, baps5, baps6)
+data24$strat <- factor(data24$strat, levels=c("ST", "cgMLST", "BAPS1", "BAPS2", "BAPS3",
+                                              "BAPS4", "BAPS5", "BAPS6"))
+
+
+# Plot Simpson's diversity analysis
+
+fig2f <- ggplot(data24, aes(x = strat, y = value, fill = serovar)) + ylim(0,1.05)+
+  theme_bw() + 
+  xlab("") +
+  ylab("Index value") +
+  theme(axis.text.y = element_text(size = 45)) +
+  theme(axis.title.y = element_text(size = 50, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 45)) +
+  theme(axis.title.x = element_text(size = 26, face = "bold")) +
+  theme(strip.text.x = element_text(size = 36))+
+  scale_fill_manual(values=c("gray", "darkblue")) + 
+  ggtitle("") +
+  theme(plot.title = element_text(size = 50, face = "bold")) + 
+    theme(legend.title=element_text(size=40, face = "bold")) +
+  theme(legend.text=element_text(size=30)) +
+  labs(fill='Serovar') +
+  geom_boxplot() +
+ annotate(geom = "text", label = "****", x = 1, y = 0.5, 
+                                  color = "black", size = 6) +
+    annotate(geom = "text", label = "****", x = 2, y = 1.02, 
+                                  color = "black", size = 6) +
+    annotate(geom = "text", label = "****", x = 3, y = 0.25, 
+                                  color = "black", size = 6) +
+    annotate(geom = "text", label = "****", x = 4, y = 1, 
+                                  color = "black", size = 6) +
+    annotate(geom = "text", label = "****", x = 5, y = 1, 
+                                  color = "black", size = 6) +
+    annotate(geom = "text", label = "****", x = 6, y = 1, 
+                                  color = "black", size = 6) +
+   annotate(geom = "text", label = "****", x = 7, y = 1.02, 
+                                  color = "black", size = 6) +
+    annotate(geom = "text", label = "***", x = 8, y = 1.02, 
+                                  color = "black", size = 6) +
+  geom_vline(xintercept = 1.5) +
+  geom_vline(xintercept = 2.5) +
+  geom_vline(xintercept = 3.5) +
+  geom_vline(xintercept = 4.5) +
+  geom_vline(xintercept = 5.5) +
+  geom_vline(xintercept = 6.5) +
+  geom_vline(xintercept = 7.5) 
+fig2f
+```
+

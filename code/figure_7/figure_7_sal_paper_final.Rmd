@@ -870,7 +870,6 @@ p3
 Plot the temporal changes of the cgmlst over time
 
 ```{r, include = FALSE}
-
 #############################################################################################
 
 # CGMLST
@@ -952,7 +951,7 @@ data1$cgmlst <- factor(data1$cgmlst, levels=c("cgMLST 2242423463", "cgMLST 38734
 plot2 <- ggplot(data1, aes(x = year, y = prop, color = cgmlst, group = cgmlst)) + ylim(0, 100) +
   theme_bw() +  xlab("Years") +
   ylab("Proportion") +
-    theme(axis.text.x = element_text(angle = 70, hjust = 1, size = 30)) +
+    theme(axis.text.x = element_text(angle = 80, hjust = 1, size = 20)) +
   theme(axis.title.x = element_text(size = 35, face = "bold")) +
   theme(axis.title.y = element_text(size = 35, face = "bold")) +
   theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 30)) +
@@ -1402,3 +1401,5 @@ snpinf <- ggplot(d9, aes(x = dist, fill = pca)) +
   facet_wrap(~pca)
 snpinf
 ```
+
+

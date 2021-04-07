@@ -1,0 +1,188 @@
+---
+title: "Diversity of pca clusters Infantis"
+author: "Joao Carlos Gomes-Neto"
+date: "4/7/2021"
+output: html_document
+---
+
+Simpson index of diversity of clusters based on cgMLST and baps2-6
+
+```{r, include = FALSE}
+#############################################
+
+# BAPS1
+
+baps <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/fastbaps_partition_baps_prior_l6.csv')
+
+# Changing column names 
+
+colnames(baps)[1:7] <- c("id", "BAPS1", "BAPS2", "BAPS3", "BAPS4", "BAPS5", "BAPS6") 
+
+
+d1 <- baps
+
+#############################################################################################
+#############################################################################################
+
+# CGMLST
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") 
+
+
+d3 <- sis1
+
+# PCA CLUSTER
+
+data2 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/pca_infantis/cluster2.csv")
+
+d7 <- data2 %>% select(-X1)
+#############################################################################################
+#############################################################################################
+
+# combining all datasets
+
+d8 <- left_join(d1, d3, on = "id")
+d9 <- left_join(d8, d7, on = "id")
+
+
+# transform baps to factors
+
+d9 <- d9 %>% mutate(BAPS2 = as.factor(BAPS2))
+d9 <- d9 %>% mutate(BAPS3 = as.factor(BAPS3))
+d9 <- d9 %>% mutate(BAPS4 = as.factor(BAPS4))
+d9 <- d9 %>% mutate(BAPS5 = as.factor(BAPS5))
+d9 <- d9 %>% mutate(BAPS6 = as.factor(BAPS6))
+
+d10 <- d9 %>% select(-BAPS1)
+
+# create a new colum
+
+d10 <- d10 %>% mutate(pca = ifelse(cluster == "1", "Cluster 1", "Cluster 2"))
+
+# cgMLST diversity 
+
+cgmlst_div <- d10 %>%
+              drop_na(cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(pca, cgmlst_ST) %>%
+              group_by(pca, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(pca) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("pca"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "cgMLST")
+
+#####################################
+
+# Baps based diversity 
+
+
+# Baps2
+baps2 <- d10 %>%
+              select(pca, BAPS2) %>%
+              drop_na(pca, BAPS2) %>%
+              group_by(pca, BAPS2) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(pca) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("pca"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS2")
+
+
+# Baps3
+baps3 <- d10 %>%
+              select(pca, BAPS3) %>%
+              drop_na(pca, BAPS3) %>%
+              group_by(pca, BAPS3) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(pca) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("pca"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS3")
+
+
+# Baps4
+baps4 <- d10 %>%
+              select(pca, BAPS4) %>%
+              drop_na(pca, BAPS4) %>%
+              group_by(pca, BAPS4) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(pca) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("pca"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS4")
+
+# Baps5
+baps5 <- d10 %>%
+              select(pca, BAPS5) %>%
+              drop_na(pca, BAPS5) %>%
+              group_by(pca, BAPS5) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(pca) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("pca"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS5")
+
+# Baps6
+baps6 <- d10 %>%
+              select(pca, BAPS6) %>%
+              drop_na(pca, BAPS6) %>%
+              group_by(pca, BAPS6) %>%
+              summarise(n = n()) %>%
+              mutate(simpson = diversity(n, "simpson")) %>%
+              group_by(pca) %>%
+              summarise(simpson = mean(simpson)) %>%
+              melt(id.vars=c("pca"), measure.vars="simpson",
+                    variable.name="index", value.name="value") %>%
+              mutate(strat = "BAPS6")
+
+# Concatenate all datasets
+
+d11 <- rbind(cgmlst_div, baps2, baps3, baps4, baps5, baps6)
+d11$strat <- factor(d11$strat, levels=c("cgMLST", "BAPS2", "BAPS3",
+                                              "BAPS4", "BAPS5", "BAPS6"))
+
+# Plot Simpson's diversity analysis
+
+fig7e <- ggplot(d11, aes(x = strat, y = value, group = pca, fill = pca)) + ylim(0,1.06)+
+  theme_bw() + 
+  xlab("") +
+  ylab("Index value") +
+  theme(axis.text.y = element_text(size = 45)) +
+  theme(axis.title.y = element_text(size = 50, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 45)) +
+  theme(axis.title.x = element_text(size = 26, face = "bold")) +
+  theme(strip.text.x = element_text(size = 36))+
+  theme(legend.title=element_text(size=35, face = "bold"))+
+  theme(legend.text=element_text(size=30)) +
+   geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(name = "PCA-clusters", values=c("darkblue", "gray")) 
+fig7e
+```

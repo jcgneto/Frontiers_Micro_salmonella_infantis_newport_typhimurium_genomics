@@ -1,0 +1,135 @@
+---
+title: "cgmlst changes over time Infantis"
+author: "Joao Carlos Gomes-Neto"
+date: "4/7/2021"
+output: html_document
+---
+
+Plot the temporal changes of the cgmlst over time
+
+```{r, include = FALSE}
+
+#############################################################################################
+
+# CGMLST
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Generate the id column 
+
+sistr$id <- sapply(strsplit(as.character(sistr$genome),'_'), "[", 1)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(id, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") 
+
+
+sis1 <- mutate(sis1, cgmlst = ifelse(cgmlst_ST %in% 2242423463, "cgMLST 2242423463",
+                                      ifelse(cgmlst_ST %in% 3873414194, "cgMLST 3873414194",
+                                      ifelse(cgmlst_ST %in% 1267535865, "cgMLST 1267535865",
+                                      ifelse(cgmlst_ST %in% 1582303201, "cgMLST 1582303201",
+                                      ifelse(cgmlst_ST %in% 1999638313, "cgMLST 1999638313",
+                                      ifelse(cgmlst_ST %in% 3087372233, "cgMLST 3087372233",
+                                            "Other cgMLSTs")))))))
+
+d1 <- sis1
+
+d1 <- d1 %>% select(id, cgmlst)
+
+#############################################################################################
+#############################################################################################
+
+# PCA CLUSTER
+
+data2 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/pca_infantis/cluster2.csv")
+
+d2 <- data2 %>% select(-X1)
+#############################################################################################
+#############################################################################################
+
+# combining all datasets
+
+d3 <- left_join(d1, d2, on = "id")
+d4 <- d3 %>% mutate(pca_cluster = cluster) %>% select(-cluster)
+d4 <- d4 %>% mutate(pca_cluster = as.factor(pca_cluster))
+
+
+# create a new column
+
+d5 <- d4 %>% mutate(pca = ifelse(pca_cluster == "1", "Cluster 1", "Cluster 2"))
+d6 <- d5 %>% select(-pca_cluster)
+
+
+# merge data
+
+d7 <- left_join(d6, d3b, on = "id")
+
+data1 <- d7 %>%
+              select(cgmlst, year, source) %>%
+              group_by(source, year, cgmlst) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) 
+
+data1$cgmlst <- factor(data1$cgmlst, levels=c("cgMLST 2242423463", "cgMLST 3873414194", 
+                                              "cgMLST 1267535865", "cgMLST 1582303201",
+                                              "cgMLST 1999638313", "cgMLST 3087372233",
+                                              "Other cgMLSTs"))
+
+# plot data
+
+plot2 <- ggplot(data1, aes(x = year, y = prop, color = cgmlst, group = cgmlst)) + ylim(0, 100) +
+  theme_bw() +  xlab("Years") +
+  ylab("Proportion") +
+    theme(axis.text.x = element_text(angle = 70, hjust = 1, size = 30)) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 30)) +
+  theme(legend.title=element_text(size=35, face = "bold"))+
+  theme(legend.text=element_text(size=30)) +
+  scale_color_manual(name = "cgMLST variants", values=c("black", "purple", "darkgreen", "gray", 
+  "darkblue", "red", "orange")) +
+  theme(strip.text.x = element_text(size = 20, face = "bold")) +
+  #guides(linetype = guide_legend(override.aes = list(size = 10)))  +
+    geom_line(size=3) +
+  theme(legend.key.width = unit(3,"cm")) +
+  facet_wrap(~source) 
+plot2
+
+# distribution of major cgmlsts across cluster
+
+data2 <- d7 %>%
+              select(pca, cgmlst) %>%
+              drop_na() %>%
+              group_by(pca, cgmlst) %>%
+              summarise(n = n()) %>%
+              mutate(total = sum(n)) %>% 
+              mutate(prop = n/total*100) 
+
+data2$cgmlst <- factor(data2$cgmlst, levels=c("cgMLST 2242423463", "cgMLST 3873414194", 
+                                              "cgMLST 1267535865", "cgMLST 1582303201",
+                                              "cgMLST 1999638313", "cgMLST 3087372233",
+                                              "Other cgMLSTs"))
+plot3 <- ggplot(data2, aes(x = prop, y = pca, fill = cgmlst)) + xlim(0, 101) +
+  theme_bw() +  xlab("Proportion") +
+  ylab("") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 35)) +
+  theme(axis.title.x = element_text(size = 40, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 40)) +
+  theme(strip.text.x = element_text(size = 30, face = "bold")) +
+  theme(legend.title=element_text(size=35, face = "bold"))+
+  theme(legend.text=element_text(size=30)) +
+  scale_fill_manual(name = "cgMLST variants", values=c("black", "purple", "darkgreen", "gray", 
+  "darkblue", "red", "orange")) +
+    geom_bar(position="stack", stat="identity")
+plot3
+```

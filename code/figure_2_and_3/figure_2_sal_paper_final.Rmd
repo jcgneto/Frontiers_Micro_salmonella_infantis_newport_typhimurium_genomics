@@ -311,6 +311,14 @@ data2 <- sis1
 a <- data2 %>% select(cgmlst_ST) %>% drop_na() %>% distinct(cgmlst_ST) %>% count()
 a
 
+cgmlst_prop <- data2 %>%
+              drop_na(cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(cgmlst_ST) %>%
+              group_by(cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(prop_cgmlst = n/sum(n)*100) %>%
+              arrange(desc(prop_cgmlst))
 ############################################################
 
 # Enter Baps 1-6 
@@ -941,6 +949,14 @@ data1 <- s1
 
 a <- data1 %>% select(ST) %>% drop_na() %>% distinct(ST) %>% count()
 a
+
+st_prop <- s1 %>%
+              drop_na(st) %>%
+              select(st) %>%
+              group_by(st) %>%
+              summarise(n = n()) %>%
+              mutate(prop_st = n/sum(n)*100) %>%
+              arrange(desc(prop_st))
 ####################################################################
 
 # Enter SISTR results

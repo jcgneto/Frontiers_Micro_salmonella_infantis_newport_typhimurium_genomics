@@ -519,6 +519,21 @@ d17 <- d17 %>% select(-pca_cluster)
 # merge data
 
 d18 <- left_join(d17, d3b, on = "id")
+# number of genomes per year
+
+a <- d18 %>% select(year) %>% group_by(year) %>% count()
+a <- rename(a, count = n)
+
+p1a <- ggplot(a, aes(x = year, y = count)) + 
+  theme_bw() +  xlab("Years") +
+  ylab("Number of genomes") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 20)) +
+  theme(axis.title.x = element_text(size = 35, face = "bold")) +
+  theme(axis.title.y = element_text(size = 35, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 30)) +
+  theme(legend.position = "none")+
+  geom_col()
+p1a
 
 data1 <- d18 %>%
               select(pca, year, source) %>%

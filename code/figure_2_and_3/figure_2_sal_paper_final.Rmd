@@ -1509,7 +1509,7 @@ t1 <- ggtree(tree_group_1, layout = "circular") + xlim(-50, NA)
 fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
   scale_fill_manual(values = c("gray", "darkblue",
                                "cornflowerblue", "coral", "darkgreen", "red",
-                                 "red", "darkseagreen3", "darkcyan", "darksalmon",
+                                 "yellow", "darkseagreen3", "darkcyan", "darksalmon",
                                "cadetblue4", "black", "darkblue", "purple", 
                                "red", "darkblue", "gray"),
                     breaks = c("Biphasic", "Monophasic", "Other serovars",
@@ -1517,7 +1517,7 @@ fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
                                "ST19", "ST34", "ST36", "ST313", "Other STs",
                                "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
                     name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
-  ggtitle(expression(bold(paste("O. Hierarchical population structure - ", bolditalic(S),". Typhimurium")))) +
+  ggtitle(expression(bold(paste("Hierarchical population structure - ", bolditalic(S),". Typhimurium")))) +
   theme(plot.title = element_text(size = 40, face = "bold"), 
         legend.title=element_text(size=24, face = "bold"), 
     legend.text=element_text(size=22))

@@ -478,6 +478,19 @@ fig4be  <- ggarrange(sero_plot, baps_plot, st_plot, cgmlst_plot,
                   nrow = 2, ncol = 2, widths = c(10, 10, 10, 10),
                 heights = c(1, 1, 1, 1))
 fig4be
+
+# proportion of cgmlst within ST32
+
+cgmlst_data2 <- data5 %>%
+              filter(serovar == "Infantis") %>%
+              drop_na(serovar, st, cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(st, cgmlst_ST) %>%
+              group_by(st, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(prop_cgmlst = n/sum(n)*100) %>%
+              arrange(st, desc(prop_cgmlst)) 
+cgmlst_data2
 ```
 
 Simpson diversity using ST, cgmlst, and baps 1-6 S. Infantis
@@ -1149,6 +1162,19 @@ fig3be  <- ggarrange(sero_plot, baps_plot, st_plot, cgmlst_plot,
                   nrow = 2, ncol = 2, widths = c(10, 10, 10, 10),
                 heights = c(1, 1, 1, 1))
 fig3be
+
+# proportion of cgmlst within each ST
+
+cgmlst_data2 <- data5 %>%
+              filter(serovar == "Newport") %>%
+              drop_na(serovar, st, cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(st, cgmlst_ST) %>%
+              group_by(st, cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(prop_cgmlst = n/sum(n)*100) %>%
+              arrange(st, desc(prop_cgmlst)) 
+cgmlst_data2
 ```
 
 
@@ -2079,6 +2105,19 @@ fig2be  <- ggarrange(sero_plot, baps_plot, st_plot, cgmlst_plot,
                   nrow = 2, ncol = 2, widths = c(10, 10, 10, 10),
                 heights = c(1, 1, 1, 1))
 fig2be
+
+# proportion of cgmlst within each serovar Monophasic
+
+cgmlst_data2 <- data23b %>%
+              filter(serovar == "Monophasic") %>%
+              drop_na(serovar, st, cgmlst_ST) %>%
+              mutate(cgmlst_ST = as.factor(cgmlst_ST)) %>%
+              select(cgmlst_ST) %>%
+              group_by(cgmlst_ST) %>%
+              summarise(n = n()) %>%
+              mutate(prop_cgmlst = n/sum(n)*100) %>%
+              arrange(desc(prop_cgmlst)) 
+cgmlst_data2
 ```
 
 

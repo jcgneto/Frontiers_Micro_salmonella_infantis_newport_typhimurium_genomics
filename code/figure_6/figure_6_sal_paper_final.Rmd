@@ -455,6 +455,7 @@ d3 <- d3 %>% select(id, cgmlst)
 d4 <- left_join(d1, d2, on = "id")
 d5 <- left_join(d4, d3, on = "id")
 d6 <- d5 %>% mutate(baps_1 = as.factor(baps_1))
+write.csv(d5, file = "newport_unmc_isolates_cgmlst.csv", na = " ")
 
 ########################################################################
 ########################################################################

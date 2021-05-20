@@ -15,6 +15,7 @@ library(skimr)
 library(RColorBrewer)
 library(gridExtra)
 library(lattice)
+library(rstatix)
 library(ggpubr)
 library(vegan)
 library(reshape2)
@@ -446,11 +447,13 @@ d3 <- d3 %>% mutate(cgmlst = case_when(cgmlst_ST == 49167135 ~ "cgMLST 49167135"
                                            cgmlst_ST == 4285211217 ~ "cgMLST 4285211217",
                                            cgmlst_ST == 0 ~ "Unclassified"))
 d3 <- d3 %>% select(id, cgmlst)
+#write.csv(d3, file = "typhimurium_unmc_isolates_cgmlst.csv", na = " ")
 
 # merge datasets
 
 d4 <- left_join(d1, d2, on = "id")
 d5 <- left_join(d4, d3, on = "id")
+write.csv(d5, file = "typhimurium_unmc_isolates_cgmlst.csv", na = " ")
 
 # enter host data
 
@@ -557,19 +560,115 @@ fig9c
 
 # statistical model for copper 
 
-model <- aov(od_values ~ pop_size*oxygen*ice, data = phe2)
+model <- aov(od_values ~ pop_size*oxygen*ice*concentration*st, data = phe2)
 summary(model)
+out1<-xtable(model)
+write.csv(out1, file = "copper_anova.csv", sep = ",", na = " ")
 
-# Permanova 
+#myplot <- ggboxplot(
+ # data_stat1, x = "concentration", y = "od_values",
+ # fill = "st", palette = "npg",
+ # ggtheme = theme_pubr(border = TRUE)
+ # ) +
+ # facet_wrap(~oxygen)
+# Add statistical test p-values
+#stat.test <- stat.test %>% add_xy_position(x = "st")
+#a <- myplot + stat_pvalue_manual(stat.test, label = "p.adj.signif")
+#a
 
-#permodel <- adonis(od_values ~ pop_size*oxygen*ice, data = phe2)
-#permodel
+####################################################################
+####################################################################
+####################################################################
+# calculate pairwise differences between STs for copper grouping by oxygen status, pop_size, concentration
 
+data_stat1 <- phe2 %>% select(id, pop_size, concentration, oxygen, st, od_values)
+stat.test <- data_stat1 %>%
+  group_by(oxygen, pop_size, concentration) %>%
+  t_test(od_values ~ st, p.adjust.method = "bonferroni")
+# Remove unnecessary columns and display the outputs
+mod1 <- stat.test %>% select(-.y., -statistic, -df)
+mod1 
+
+# Plot data for copper - aerobic and pop_size 10^5
+graphs <- data_stat1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+05) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p1 <- graphs$plots %>% set_names(variables)
+p1
+
+# Plot data for copper - aerobic and pop_size 10^7
+graphs <- data_stat1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+07) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p2 <- graphs$plots %>% set_names(variables)
+p2
+
+# Plot data for copper - anaerobic and pop_size 10^5
+graphs <- data_stat1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+05) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p3 <- graphs$plots %>% set_names(variables)
+p3
+
+# Plot data for copper - anaerobic and pop_size 10^7
+graphs <- data_stat1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+07) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p4 <- graphs$plots %>% set_names(variables)
+p4
+
+s1 <- mod1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+05) %>% select(concentration, group1, group2, p.adj.signif)
+s1
+
+s2 <- mod1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+07) %>% select(concentration, group1, group2, p.adj.signif)
+s2
+
+s3 <- mod1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+05) %>% select(concentration, group1, group2, p.adj.signif)
+s3
+
+s4 <- mod1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+07) %>% select(concentration, group1, group2, p.adj.signif)
+s4
+
+####################################################################
+####################################################################
+####################################################################
 ############################################################################
 ############################################################################
 ############################################################################
 
-# plot the data for copper
+# plot the data for zinc
 
 phe3 <- phe1 %>% filter(heavy_metal == "zinc") %>% drop_na()
 fig9d <- ggplot(phe3, aes(x = concentration, y = od_values, color = st)) +
@@ -595,6 +694,97 @@ fig9d
 
 # statistical model for copper 
 
-model2 <- aov(od_values ~ pop_size*oxygen*ice, data = phe3)
+model2 <- aov(od_values ~ pop_size*oxygen*ice*concentration*st, data = phe3)
 summary(model2)
+out2 <- xtable(model2)
+write.csv(out2, file = "zinc_anova.csv", na = " ")
+
+####################################################################
+####################################################################
+####################################################################
+# calculate pairwise differences between STs for copper grouping by oxygen status, pop_size, concentration
+
+data_stat1 <- phe3 %>% select(id, pop_size, concentration, oxygen, st, od_values)
+stat.test <- data_stat1 %>%
+  group_by(oxygen, pop_size, concentration) %>%
+  t_test(od_values ~ st, p.adjust.method = "bonferroni")
+# Remove unnecessary columns and display the outputs
+mod1 <- stat.test %>% select(-.y., -statistic, -df)
+mod1 
+
+# Plot data for zinc - aerobic and pop_size 10^5
+graphs <- data_stat1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+05) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p1 <- graphs$plots %>% set_names(variables)
+p1
+
+# Plot data for zinc - aerobic and pop_size 10^7
+graphs <- data_stat1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+07) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p2 <- graphs$plots %>% set_names(variables)
+p2
+
+# Plot data for zinc - anaerobic and pop_size 10^5
+graphs <- data_stat1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+05) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p3 <- graphs$plots %>% set_names(variables)
+p3
+
+# Plot data for zinc - anaerobic and pop_size 10^7
+graphs <- data_stat1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+07) %>%
+  group_by(concentration) %>%
+  doo(
+    ~ggboxplot(
+      data =., x = "st", y = "od_values",
+      fill = "st", palette = "npg", legend = "none",
+      ggtheme = theme_pubr()
+      ), 
+    result = "plots"
+  )
+variables <- graphs$concentration
+p4 <- graphs$plots %>% set_names(variables)
+p4
+
+s1b <- mod1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+05) %>% select(concentration, group1, group2, p.adj.signif)
+s1b
+
+s2b <- mod1 %>% filter(oxygen == "Aerobic" & pop_size == 1e+07) %>% select(concentration, group1, group2, p.adj.signif)
+s2b
+
+s3b <- mod1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+05) %>% select(concentration, group1, group2, p.adj.signif)
+s3b
+
+s4b <- mod1 %>% filter(oxygen == "Anaerobic" & pop_size == 1e+07) %>% select(concentration, group1, group2, p.adj.signif)
+s4b
+
+####################################################################
+####################################################################
+####################################################################
 ```

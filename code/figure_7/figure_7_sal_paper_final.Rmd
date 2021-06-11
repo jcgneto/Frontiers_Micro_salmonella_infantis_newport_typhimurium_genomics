@@ -1417,4 +1417,49 @@ snpinf <- ggplot(d9, aes(x = dist, fill = pca)) +
 snpinf
 ```
 
+Kmer cluster vs pca shell-gene clustering 
+
+```{r, include = TRUE}
+
+# KMER CLUSTER 
+
+# Enter kmer-matrix
+
+data1 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/kmer_matrix/kmer_infantis.csv")
+
+# generate cluster membership
+
+#  Non-supervised kmeans clustering analysis
+
+cluster_data <- data1 %>% select(tSNE1, tSNE2)
+
+# combining both approaches we determine that 2 clusters are enough 
+set.seed(123)
+km.final <- kmeans(cluster_data, 2)
+data1$kmer_cluster <- km.final$cluster
+data1$kmer_cluster <- as.factor(data1$kmer_cluster)
+
+# select the column we need
+
+d4 <- data1 %>% select(id, kmer_cluster)
+
+# PCA CLUSTER
+
+data2 <- read_csv("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/infantis/pca_infantis/cluster2.csv")
+
+d2 <- data2 %>% select(-X1)
+d2 <- d2 %>% rename(pca_cluster = cluster)
+
+# merge datasets 
+
+dd <- left_join(d4, d2, on = "id")
+
+# frequencies
+
+dd1 <- dd %>% group_by(pca_cluster, kmer_cluster) %>% count()
+dd1
+
+```
+
+
 

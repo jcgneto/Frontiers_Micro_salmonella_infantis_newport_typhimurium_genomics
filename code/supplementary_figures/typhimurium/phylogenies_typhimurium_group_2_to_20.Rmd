@@ -1,0 +1,2847 @@
+---
+title: "Suplementary figures - phylogenies Typhimurium groups 2-20"
+author: "Joao Carlos Gomes-Neto"
+date: "8/2/2020"
+output: html_document
+---
+Loading the necessary packages 
+```{r, include = FALSE}
+# Load packages
+
+library(tidyverse)
+library(skimr)
+library(RColorBrewer)
+library(gridExtra)
+library(lattice)
+library(ggpubr)
+library(vegan)
+library(reshape2)
+library(ggrepel)
+library(ggnewscale)
+library(forcats)
+library(naniar)
+library(Rtsne)
+
+# Install ggtree 
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+#BiocManager::install(version = "3.11")
+
+#BiocManager::install("ggtree")
+
+# Load ggtree
+
+library(ggtree)
+```
+
+group 2
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_2/input_data/typhimurium_phylogeny_gr2.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_2/input_data/roary_output_gr2.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-10, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=250, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("A. Group 2 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 3
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_3/input_data/typhimurium_phylogeny_gr3.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_3/input_data/roary_output_gr3.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("B. Group 3 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 4
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_4/input_data/typhimurium_phylogeny_gr4.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_4/input_data/roary_output_gr4.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("C. Group 4 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 5
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_5/input_data/typhimurium_phylogeny_gr5.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_5/input_data/roary_output_gr5.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("D. Group 5 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 6
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_6/input_data/typhimurium_phylogeny_gr6.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_6/input_data/roary_output_gr6.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("E. Group 6 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 7
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_7/input_data/typhimurium_phylogeny_gr7.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_7/input_data/roary_output_gr7.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=250, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("F. Group 7 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 8
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_8/input_data/typhimurium_phylogeny_gr8.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_8/input_data/roary_output_gr8.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("G. Group 8 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 9
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_9/input_data/typhimurium_phylogeny_gr9.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_9/input_data/roary_output_gr9.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("H. Group 9 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 10
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_10/input_data/typhimurium_phylogeny_gr10.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_10/input_data/roary_output_gr10.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=250, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("I. Group 10 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 11
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_11/input_data/typhimurium_phylogeny_gr11.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_11/input_data/roary_output_gr11.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("K. Group 11 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 12
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_12/input_data/typhimurium_phylogeny_gr12.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_12/input_data/roary_output_gr12.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("L. Group 12 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 13
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_13/input_data/typhimurium_phylogeny_gr13.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_13/input_data/roary_output_gr13.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("M. Group 13 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 14
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_14/input_data/typhimurium_phylogeny_gr14.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_14/input_data/roary_output_gr14.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("N. Group 14 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 15
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_15/input_data/typhimurium_phylogeny_gr15.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_15/input_data/roary_output_gr15.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("O. Group 15 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 16
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_16/input_data/typhimurium_phylogeny_gr16.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_16/input_data/roary_output_gr16.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("P. Group 16 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 17
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_17/input_data/typhimurium_phylogeny_gr17.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_17/input_data/roary_output_gr17.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-10, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=250, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("Q. Group 17 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 18
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_18/input_data/typhimurium_phylogeny_gr18.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_18/input_data/roary_output_gr18.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("R. Group 18 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 19
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_19/input_data/typhimurium_phylogeny_gr19.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_19/input_data/roary_output_gr19.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("S. Group 19 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```
+
+group 20
+
+```{r, include = FALSE}
+
+# Enter the phylogeny for Typhimurium group1
+
+tree_group <- read.tree("~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_20/input_data/typhimurium_phylogeny_gr20.tree")
+
+#############################################
+
+# Enter Baps 1-6 for Typhimurium group1
+
+baps_group <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium/data/typhimurium/group_20/input_data/roary_output_gr20.fastbaps_l6.csv')
+
+# Changing column names 
+
+colnames(baps_group)[1:2] <- c("id", "baps_1") 
+
+# Select colunms id and baps_1
+b1 <- baps_group %>% 
+              select(id, baps_1)
+
+# QC the data
+
+skim(b1)
+
+###########################################
+
+# Enter MLST results
+
+mlst <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/salmonellast_output.csv')
+
+# QC the data
+
+skim(mlst)
+
+# Generate the id column 
+
+mlst$id2 <- sapply(strsplit(as.character(mlst$FILE),'/'), "[", 3)
+s1 <- mlst %>% separate(id2, c("id", "day"), sep = "\\.")
+
+# Select columns of interest
+
+s2 <- s1 %>%
+          select(id, ST) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?")
+
+# QC the data
+
+skim(s2)
+
+####################################################################
+
+# Enter SISTR results
+
+sistr <- read_csv('~/Documents/frontiers_paper_salmonella_newport_typhimurium//data/typhimurium/global_input_data/sistr_all.csv')
+
+# QC the data 
+
+skim(sistr)
+
+# Select columns 
+
+sis1 <- sistr %>%
+            select(genome, cgmlst_ST, serovar_cgmlst) %>%
+            mutate_all(na_if, "-") %>%
+              mutate_all(na_if, "?") %>%
+                rename(id = genome)
+
+#####################################################################
+
+# Merge BAPS, MLST and SISTR results 
+
+## Merge baps and mslt first
+
+d1 <- left_join(b1, s2, on = "id") # merge mlst and baps
+d2 <- left_join(d1, sis1, on = "id") # merge d1 with sistr 
+
+# Create new columns for ST, cgmlst, and serovar
+
+# cgmlst
+
+d2 <- mutate(d2, cgmlst = ifelse(cgmlst_ST %in% 1652656062, "cgMLST 1652656062",
+                                     ifelse(cgmlst_ST %in% 860079270, "cgMLST 860079270", "Other cgMLSTs")))
+
+# st
+
+d2$st <- ifelse(d2$ST == 19, "ST19", 
+                   ifelse(d2$ST == 34, "ST34", 
+                          ifelse(d2$ST == 36, "ST36",
+                                 ifelse(d2$ST == 313, "ST313", "Other STs"))))
+
+# Replace NA in the ST column
+
+d2 <- d2 %>% mutate(st = replace_na(st, "Other STs"))
+
+# Create serovar column
+
+#data1 <- data1 %>% mutate(serovar_cgmlst = replace_na(serovar_cgmlst, 0))
+d2$serovar <- ifelse(d2$serovar_cgmlst == "Typhimurium", "Biphasic",
+                     ifelse(d2$serovar_cgmlst == "I 4,[5],12:i:-", "Monophasic",
+                            "Other serovars"))
+                     
+# Check to make sure the relevant columns are ok
+
+table(d2$st)
+table(d2$cgmlst)
+table(d2$serovar)
+table(d2$baps_1)
+
+########################################################################
+
+# Plot the phylogeny
+
+# Select the columns needed from d2
+
+d3 <- d2 %>% 
+                    select("id", "serovar", "baps_1", "st", "cgmlst") %>%
+                    mutate(baps_1 = as.factor(baps_1))
+
+# Make id the rowname or index
+
+d3 <- column_to_rownames(d3, var = "id") 
+
+# Create the tree
+
+t1 <- ggtree(tree_group, layout = "circular") + xlim(-50, NA)
+
+
+fig2a <- gheatmap(t1, d3, offset=.0, width=10, colnames = FALSE) +
+  scale_fill_manual(values = c("gray", "darkblue",
+                               "cornflowerblue", "coral", "darkgreen", "red",
+                                 "pink", "darkseagreen3", "darkcyan", "darksalmon",
+                               "cadetblue4", "black", "darkblue", "purple", 
+                               "red", "darkblue", "gray"),
+                    breaks = c("Biphasic", "Monophasic", "Other serovars",
+                               "1", "2", "3", "4", "5", "6",
+                               "ST19", "ST34", "ST36", "ST313", "Other STs",
+                               "cgMLST 1652656062", "cgMLST 860079270", "Other cgMLSTs"),
+                    name= "Serovar (innermost) -> BAPS1 -> ST -> cgMLST (outermost)") +
+  ggtitle(expression(bold(paste("T. Group 20 - ", bolditalic(S),". Typhimurium")))) +
+  theme(plot.title = element_text(size = 40, face = "bold"), 
+        legend.title=element_text(size=24, face = "bold"), 
+    legend.text=element_text(size=22))
+fig2a
+```

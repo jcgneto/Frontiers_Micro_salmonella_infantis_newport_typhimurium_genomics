@@ -1,0 +1,104 @@
+---
+title: "cgMLST comparisons of different SISTR versions"
+author: "Natasha Pavlovikj"
+date: "08/06/2021"
+output: html_document
+---
+Load packages
+
+```{r, include = FALSE}
+
+# load required libraries
+library("corrplot")
+library("ggcorrplot")
+library("ggplot2")
+library("ggrepel")
+library("plyr")
+library("BSDA")
+library("Matrix")
+library("dplyr")
+library("tidyr")
+library("magrittr")
+library("skimr")
+library(data.table)
+library(reshape2)
+library(matrixStats)
+library(janitor)
+library(wesanderson)
+
+# read input data
+input1 <- read.csv("infantis_sistr_subset_output_10.csv.serovar", sep=" ", stringsAsFactors = FALSE)
+input2 <- read.csv("infantis_sistr_subset_output_11.csv", sep=" ", stringsAsFactors = FALSE)
+input3 <- read.csv("infantis_sistr_subset_output_11_25.csv", sep=" ", stringsAsFactors = FALSE)
+input11 <- read.csv("typhimurium_sistr_subset_output_10.csv.serovar", sep=" ", stringsAsFactors = FALSE)
+input22 <- read.csv("typhimurium_sistr_subset_output_11.csv", sep=" ", stringsAsFactors = FALSE)
+input33 <- read.csv("typhimurium_sistr_subset_output_11_25.csv", sep=" ", stringsAsFactors = FALSE)
+input111 <- read.csv("newport_sistr_subset_output_10.csv.serovar", sep=" ", stringsAsFactors = FALSE)
+input222 <- read.csv("newport_sistr_subset_output_11.csv", sep=" ", stringsAsFactors = FALSE)
+input333 <- read.csv("newport_sistr_subset_output_11_25.csv", sep=" ", stringsAsFactors = FALSE)
+
+# merge all files for all serovars
+input12 <- merge(input1, input2, by="genome")
+input123 <- merge(input12, input3, by="genome")
+head(input123)
+input1122 <- merge(input11, input22, by="genome")
+input112233 <- merge(input1122, input33, by="genome")
+head(input112233)
+input111222 <- merge(input111, input222, by="genome")
+input111222333 <- merge(input111222, input333, by="genome")
+head(input111222333)
+input_12 <- rbind(input123, input112233)
+head(input_12)
+input_123 <- rbind(input_12, input111222333)
+head(input_123)
+
+# drom NAs
+data1 <- input_123 %>%
+  drop_na()
+data1
+
+# convert wide to long format
+data2 <- melt(data1, id.vars=c("genome","serovar"))
+data2
+
+# compute frequency 
+cgmlst_scatter <- data2 %>%
+  select(serovar, variable, value) %>%
+  group_by(serovar, variable, value) %>%  # group by cgmlst_ST
+  summarise(n = n()) %>%  # count observations 
+  mutate(prop = n/sum(n)*100) %>%  # calculate proportions 
+  arrange(desc(prop))  # arrange in descending order 
+head(cgmlst_scatter)
+
+# check percentage sum
+cgmlst_scatter %>% 
+  filter(variable=="cgmlst_ST_11_25") %>% 
+  summarise(total=sum(prop))
+
+# rename labels
+cgmlst_scatter$serovar[cgmlst_scatter$serovar == "infantis"] <- "S. Infantis"
+cgmlst_scatter$serovar[cgmlst_scatter$serovar == "newport"] <- "S. Newport"
+cgmlst_scatter$serovar[cgmlst_scatter$serovar == "typhimurium"] <- "S. typhimurium"
+cgmlst_scatter$variable <- as.character(cgmlst_scatter$variable) 
+cgmlst_scatter$variable[cgmlst_scatter$variable == "cgmlst_ST_10"] <- "SISTR v1.0 + BLAST v 2.5"
+cgmlst_scatter$variable[cgmlst_scatter$variable == "cgmlst_ST_11"] <- "SISTR v1.1 + BLAST v 2.12"
+cgmlst_scatter$variable[cgmlst_scatter$variable == "cgmlst_ST_11_25"] <- "SISTR v1.1 + BLAST v 2.5"
+
+# write dataframe
+write.csv(cgmlst_scatter, "sistr_versions_cgmlst.csv")
+
+# plot 
+cgmlst_plot <- ggplot(cgmlst_scatter, aes(x = value, y = prop, labels = value)) +  # show cgMLSTs on x-axis and proportion on y-axis
+  xlab("cgMLST variants") + ylab("Proportion") + ylim(0, 50) +  # set labels for axis and limit for y-axis
+  theme_bw() +  # set plot background
+  theme(legend.position = "none") +  # remove legends 
+  theme(axis.text.y = element_text(size = 28)) +  # change y-axis text font size 
+  theme(axis.title.y = element_text(size = 30, face = "bold")) +  # change y-axis title font size and face
+  theme(axis.title.x = element_text(size = 30, face = "bold")) +  # change x-axis title font size and face
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 28)) +  # change x-axis text font size, angle, and orientation
+  theme(plot.title = element_text(size = 40, face = "bold")) +  # customize figure's title, legend, font
+  theme(strip.text.x = element_text(size = 20)) +  # customize facet_grid text size
+  theme(strip.text.y = element_text(size = 20)) +  # customize facet_grid text size
+  geom_point(aes(size =  prop), color = "steelblue") +  # the points that represent the values are blue with size based on the proportion
+  geom_text_repel(data=subset(cgmlst_scatter, prop > 3), aes(label = value, size = 30), hjust = 2) +  # add text/proportion to the plot
+  facet_grid( serovar ~ variable)

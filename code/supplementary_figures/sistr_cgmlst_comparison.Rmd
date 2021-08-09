@@ -92,13 +92,15 @@ cgmlst_plot <- ggplot(cgmlst_scatter, aes(x = value, y = prop, labels = value)) 
   xlab("cgMLST variants") + ylab("Proportion") + ylim(0, 50) +  # set labels for axis and limit for y-axis
   theme_bw() +  # set plot background
   theme(legend.position = "none") +  # remove legends 
-  theme(axis.text.y = element_text(size = 28)) +  # change y-axis text font size 
-  theme(axis.title.y = element_text(size = 30, face = "bold")) +  # change y-axis title font size and face
-  theme(axis.title.x = element_text(size = 30, face = "bold")) +  # change x-axis title font size and face
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 28)) +  # change x-axis text font size, angle, and orientation
-  theme(plot.title = element_text(size = 40, face = "bold")) +  # customize figure's title, legend, font
-  theme(strip.text.x = element_text(size = 20)) +  # customize facet_grid text size
-  theme(strip.text.y = element_text(size = 20)) +  # customize facet_grid text size
+  theme(axis.text.y = element_text(size = 40)) +  # change y-axis text font size 
+  theme(axis.title.y = element_text(size = 60, face = "bold")) +  # change y-axis title font size and face
+  theme(axis.title.x = element_text(size = 60, face = "bold")) +  # change x-axis title font size and face
+  theme(axis.text.x = element_text(angle = 50, hjust = 1, size = 40)) +  # change x-axis text font size, angle, and orientation
+  theme(plot.title = element_text(size = 60, face = "bold")) +  # customize figure's title, legend, font
+  theme(strip.text.x = element_text(size = 60)) +  # customize facet_grid text size
+  theme(strip.text.y = element_text(size = 60)) +  # customize facet_grid text size
   geom_point(aes(size =  prop), color = "steelblue") +  # the points that represent the values are blue with size based on the proportion
-  geom_text_repel(data=subset(cgmlst_scatter, prop > 3), aes(label = value, size = 30), hjust = 2) +  # add text/proportion to the plot
+  geom_text_repel(data=subset(cgmlst_scatter, prop > 3), aes(label = value), size = 16, hjust = 2) +  # add text/proportion to the plot
   facet_grid( serovar ~ variable)
+cgmlst_plot
+ggsave("sistr_comparison.pdf", cgmlst_plot, width=77, height=33, limitsize = FALSE)
